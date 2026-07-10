@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { toast } from 'react-toastify';
 
 const WorkersTable = () => {
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const [workers, setWorkers] = useState([]);
   const [pagination, setPagination] = useState({});
   const [filters, setFilters] = useState({ regions: [], professions: [] });
@@ -36,22 +35,22 @@ const WorkersTable = () => {
   const handleSearch = (e) => { e.preventDefault(); setPage(1); fetchWorkers(); };
 
   if (blocked) return (
-    <section className="section" id="workers">
+    <div className="tab-section">
       <div className="section-header">
         <span className="section-badge">بيانات العمال</span>
         <h2 className="section-title">كشف <span className="gradient-text">العاملين</span></h2>
       </div>
       <div className="locked-content">
-        <div className="locked-icon">&#128274;</div>
+        <div className="locked-icon">🔒</div>
         <h3>هذه البيانات متاحة للمشتركين فقط</h3>
         <p>سجّل دخولك أو اشترك للوصول إلى بيانات العمال والأسر المحتاجة</p>
         <a href="#subscribe" className="btn-primary">اشترك الآن</a>
       </div>
-    </section>
+    </div>
   );
 
   return (
-    <section className="section" id="workers">
+    <div className="tab-section">
       <div className="section-header">
         <span className="section-badge">بيانات العمال</span>
         <h2 className="section-title">كشف <span className="gradient-text">العاملين</span></h2>
@@ -90,7 +89,7 @@ const WorkersTable = () => {
           )}
         </>
       )}
-    </section>
+    </div>
   );
 };
 

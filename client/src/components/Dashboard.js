@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
-const Dashboard = () => {
-  const { user, token, isApproved } = useAuth();
+const Dashboard = ({ onNavigate }) => {
+  const { isApproved } = useAuth();
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
@@ -13,24 +13,24 @@ const Dashboard = () => {
   }, []);
 
   if (!isApproved) return (
-    <section className="section" id="dashboard">
+    <div className="tab-section">
       <div className="section-header">
         <span className="section-badge">لوحة التحكم</span>
         <h2 className="section-title">نظرة <span className="gradient-text">عامة</span></h2>
       </div>
       <div className="locked-content">
-        <div className="locked-icon">&#128202;</div>
+        <div className="locked-icon">📊</div>
         <h3>لوحة التحكم متاحة للمشتركين فقط</h3>
         <p>سجّل دخولك أو اشترك لعرض الإحصائيات والرسوم البيانية</p>
-        <a href="#subscribe" className="btn-primary">اشترك الآن</a>
+        <a href="#subscribe" className="btn-primary" onClick={(e) => { e.preventDefault(); onNavigate('subscribe'); }}>اشترك الآن</a>
       </div>
-    </section>
+    </div>
   );
 
-  if (!stats) return <div className="section" id="dashboard"><div className="spinner"></div></div>;
+  if (!stats) return <div className="spinner"></div>;
 
   return (
-    <section className="section" id="dashboard">
+    <div className="tab-section">
       <div className="section-header">
         <span className="section-badge">لوحة التحكم</span>
         <h2 className="section-title">نظرة <span className="gradient-text">عامة</span></h2>
@@ -38,21 +38,25 @@ const Dashboard = () => {
       </div>
 
       <div className="stats-grid">
-        <div className="stat-item">
+        <div className="stat-item clickable" onClick={() => onNavigate('workers')}>
           <div className="stat-number"><span className="gradient-text">{stats.totalWorkers || 0}</span></div>
           <div className="stat-label">إجمالي العمال</div>
+          <div className="stat-action">عرض البيانات →</div>
         </div>
-        <div className="stat-item">
+        <div className="stat-item clickable" onClick={() => onNavigate('families')}>
           <div className="stat-number"><span className="gradient-text">{stats.totalFamilies || 0}</span></div>
           <div className="stat-label">عدد الفرق</div>
+          <div className="stat-action">عرض البيانات →</div>
         </div>
-        <div className="stat-item">
+        <div className="stat-item clickable" onClick={() => onNavigate('workers')}>
           <div className="stat-number"><span className="gradient-text">{(stats.regions || []).length}</span></div>
           <div className="stat-label">عدد المناطق</div>
+          <div className="stat-action">عرض البيانات →</div>
         </div>
-        <div className="stat-item">
+        <div className="stat-item clickable" onClick={() => onNavigate('workers')}>
           <div className="stat-number"><span className="gradient-text">{(stats.professions || []).length}</span></div>
           <div className="stat-label">عدد المهن</div>
+          <div className="stat-action">عرض البيانات →</div>
         </div>
       </div>
 
@@ -117,7 +121,7 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
-    </section>
+    </div>
   );
 };
 

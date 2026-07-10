@@ -40,25 +40,25 @@ const FamiliesTable = () => {
   };
 
   if (blocked) return (
-    <section className="section" id="families">
+    <div className="tab-section">
       <div className="section-header">
         <span className="section-badge">الأسر المستفيدة</span>
         <h2 className="section-title">فرق <span className="gradient-text">العمل</span></h2>
       </div>
       <div className="locked-content">
-        <div className="locked-icon">&#128274;</div>
+        <div className="locked-icon">🔒</div>
         <h3>هذه البيانات متاحة للمشتركين فقط</h3>
         <p>سجّل دخولك أو اشترك للوصول إلى بيانات الأسر المستفيدة</p>
         <a href="#subscribe" className="btn-primary">اشترك الآن</a>
       </div>
-    </section>
+    </div>
   );
 
   const totalAmount = families.reduce((s,f)=>s+(f.totalAmount||0),0);
   const totalBens = families.reduce((s,f)=>s+(f.beneficiaries?f.beneficiaries.length:1),0);
 
   return (
-    <section className="section" id="families">
+    <div className="tab-section">
       <div className="section-header">
         <span className="section-badge">الأسر المستفيدة</span>
         <h2 className="section-title">فرق <span className="gradient-text">العمل</span></h2>
@@ -127,7 +127,7 @@ const FamiliesTable = () => {
           )}
         </>
       )}
-    </section>
+    </div>
   );
 };
 

@@ -10,7 +10,7 @@ const Hero = () => (
     </div>
     <div className="hero-content">
       <div className="hero-badge">
-        <span>&#9889;</span>
+        <span>⚡</span>
         <span>منصة البيانات الموحدة</span>
       </div>
       <h1>
@@ -19,8 +19,8 @@ const Hero = () => (
       </h1>
       <p>منصة متكاملة لعرض وإدارة بيانات العمال والفرق والأسر المحتاجة في راس عيسى - الصليف. بيانات محدثة ودقيقة لاتخاذ القرارات.</p>
       <div className="hero-buttons">
-        <a href="#dashboard" className="btn-primary">عرض البيانات &#8595;</a>
-        <a href="#subscribe" className="btn-secondary">اشترك الآن</a>
+        <a href="#tabs" className="btn-primary">عرض البيانات ↓</a>
+        <a href="#tabs" className="btn-secondary">اشترك الآن</a>
       </div>
     </div>
   </section>

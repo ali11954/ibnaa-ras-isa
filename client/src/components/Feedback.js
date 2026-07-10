@@ -52,7 +52,7 @@ const Feedback = () => {
   };
 
   return (
-    <section className="section" id="feedback">
+    <div className="tab-section">
       <div className="section-header">
         <span className="section-badge">الملاحظات والمقترحات</span>
         <h2 className="section-title">شاركنا <span className="gradient-text">ملاحظاتك</span></h2>
@@ -61,7 +61,7 @@ const Feedback = () => {
 
       {!isApproved && (
         <div className="locked-content">
-          <div className="locked-icon">&#128221;</div>
+          <div className="locked-icon">📝</div>
           <h3>الملاحظات متاحة للمشتركين فقط</h3>
           <p>سجّل دخولك أو اشترك لإرسال ملاحظاتك ومتابعة الردود</p>
           <a href="#subscribe" className="btn-primary">اشترك الآن</a>
@@ -97,7 +97,7 @@ const Feedback = () => {
       <div className="feedback-container-center">
         {submitted ? (
           <div className="success-box">
-            <div className="success-icon">&#10003;</div>
+            <div className="success-icon">✓</div>
             <h3>تم إرسال ملاحظتك بنجاح!</h3>
             <p>شكراً لك. ستتم مراجعة ملاحظتك من قبل الإدارة والرد عليها قريباً.</p>
             <button className="btn-primary" onClick={() => setSubmitted(false)}>إرسال ملاحظة أخرى</button>
@@ -124,7 +124,7 @@ const Feedback = () => {
         )}
       </div>
       )}
-    </section>
+    </div>
   );
 };
 

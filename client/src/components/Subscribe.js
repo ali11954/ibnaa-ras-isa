@@ -12,7 +12,7 @@ const Subscribe = () => {
     if (!form.name || !form.email) { toast.error('يرجى إدخال الاسم والبريد الإلكتروني'); return; }
     setLoading(true);
     try {
-      const res = await fetch('/api/subscribe', {
+      const res = await fetch('/api/subscribers/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -25,46 +25,46 @@ const Subscribe = () => {
   };
 
   return (
-    <section className="section subscribe-section" id="subscribe">
-      <div className="subscribe-container">
-        <div className="subscribe-glow"></div>
-        <div className="subscribe-content">
-          <div className="subscribe-icon"><FiMail /></div>
-          <h2>اشترك في <span className="gradient-text">منصة ابناء راس عيسى</span></h2>
-          <p>سجل بياناتك للانضمام إلى المنصة. حسابك سيكون في انتظار موافقة المدير قبل التفعيل.</p>
-          {done ? (
-            <div className="success-box" style={{ background: 'transparent', border: 'none', padding: '1rem' }}>
-              <div className="success-icon">&#10003;</div>
-              <h3>تم تسجيل اشتراكك!</h3>
-              <p>حسابك في انتظار موافقة المدير. سيتم إشعارك عند التفعيل.</p>
+    <div className="tab-section">
+      <div className="section-header">
+        <span className="section-badge">الاشتراك</span>
+        <h2 className="section-title">اشترك في <span className="gradient-text">منصة ابناء راس عيسى</span></h2>
+        <p className="section-desc">سجل بياناتك للانضمام إلى المنصة. حسابك سيكون في انتظار موافقة المدير قبل التفعيل.</p>
+      </div>
+
+      {done ? (
+        <div className="success-box">
+          <div className="success-icon">✓</div>
+          <h3>تم تسجيل اشتراكك!</h3>
+          <p>حسابك في انتظار موافقة المدير. سيتم إشعارك عند التفعيل.</p>
+        </div>
+      ) : (
+        <div className="subscribe-form-wrapper">
+          <form onSubmit={handleSubmit} className="subscribe-form-col">
+            <div className="form-group">
+              <label><FiUser /> الاسم الكامل *</label>
+              <input type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="أدخل اسمك الكامل" required />
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="subscribe-form-col">
-              <div className="form-group">
-                <label><FiUser /> الاسم الكامل *</label>
-                <input type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="أدخل اسمك الكامل" required />
-              </div>
-              <div className="form-group">
-                <label><FiMail /> البريد الإلكتروني *</label>
-                <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="example@email.com" required />
-              </div>
-              <div className="form-group">
-                <label><FiPhone /> رقم الهاتف</label>
-                <input type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="77XXXXXXX" />
-              </div>
-              <div className="form-group">
-                <label><FiMessageSquare /> سبب الاشتراك</label>
-                <textarea value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} placeholder="لماذا تريد الاشتراك في المنصة؟" rows={3} />
-              </div>
-              <button type="submit" className="btn-primary" disabled={loading} style={{ width: '100%', justifyContent: 'center' }}>
-                {loading ? 'جاري التسجيل...' : <><FiCheck /> تسجيل الاشتراك</>}
-              </button>
-            </form>
-          )}
+            <div className="form-group">
+              <label><FiMail /> البريد الإلكتروني *</label>
+              <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="example@email.com" required />
+            </div>
+            <div className="form-group">
+              <label><FiPhone /> رقم الهاتف</label>
+              <input type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="77XXXXXXX" />
+            </div>
+            <div className="form-group">
+              <label><FiMessageSquare /> سبب الاشتراك</label>
+              <textarea value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} placeholder="لماذا تريد الاشتراك في المنصة؟" rows={3} />
+            </div>
+            <button type="submit" className="btn-primary" disabled={loading} style={{ width: '100%', justifyContent: 'center' }}>
+              {loading ? 'جاري التسجيل...' : <><FiCheck /> تسجيل الاشتراك</>}
+            </button>
+          </form>
           <p className="subscribe-note">نحترم خصوصيتك. حسابك في انتظار موافقة المدير.</p>
         </div>
-      </div>
-    </section>
+      )}
+    </div>
   );
 };
 

@@ -4,8 +4,7 @@ import { toast } from 'react-toastify';
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [showModal, setShowModal] = useState(null); // 'login', 'register', 'forgot', 'phone'
+  const [showModal, setShowModal] = useState(null);
   const { user, logout, isAdmin } = useAuth();
 
   useEffect(() => {
@@ -14,25 +13,11 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', h);
   }, []);
 
-  const links = [
-    { label: 'الرئيسية', href: '#hero' },
-    { label: 'لوحة التحكم', href: '#dashboard' },
-    { label: 'بيانات العمال', href: '#workers' },
-    { label: 'الأسر المحتاجة', href: '#families' },
-    { label: 'الملاحظات', href: '#feedback' },
-    { label: 'الاشتراك', href: '#subscribe' },
-  ];
-  if (isAdmin) links.push({ label: 'لوحة الإدارة', href: '#admin' });
-
   return (
     <>
       <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
         <div className="container">
           <a href="#hero" className="logo">ابناء راس عيسى</a>
-          <button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? '\u2715' : '\u2630'}</button>
-          <ul className={`nav-links ${menuOpen ? 'active' : ''}`}>
-            {links.map(l => <li key={l.href}><a href={l.href} onClick={() => setMenuOpen(false)}>{l.label}</a></li>)}
-          </ul>
           <div className="nav-actions">
             {user ? (
               <div className="user-menu">
@@ -138,7 +123,6 @@ const AuthModal = ({ type, onClose, onSwitch }) => {
       <div className="modal-content" onClick={e => e.stopPropagation()}>
         <button className="modal-close" onClick={onClose}>&#10005;</button>
 
-        {/* LOGIN */}
         {type === 'login' && (
           <>
             <h3>تسجيل الدخول</h3>
@@ -154,7 +138,6 @@ const AuthModal = ({ type, onClose, onSwitch }) => {
           </>
         )}
 
-        {/* REGISTER */}
         {type === 'register' && (
           <>
             <h3>حساب جديد</h3>
@@ -173,7 +156,6 @@ const AuthModal = ({ type, onClose, onSwitch }) => {
           </>
         )}
 
-        {/* FORGOT PASSWORD */}
         {type === 'forgot' && (
           <>
             <h3>نسيت كلمة المرور</h3>
@@ -201,7 +183,6 @@ const AuthModal = ({ type, onClose, onSwitch }) => {
           </>
         )}
 
-        {/* PHONE LOGIN */}
         {type === 'phone' && (
           <>
             <h3>الدخول برقم الهاتف</h3>

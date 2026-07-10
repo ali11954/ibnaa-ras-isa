@@ -265,6 +265,43 @@ app.get("/api/stats", authMiddleware, subscriberMiddleware, (req, res) => {
   });
 });
 
+app.get("/api/citizen-stats", authMiddleware, subscriberMiddleware, (req, res) => {
+  const countByField = (field) => {
+    const counts = {};
+    workersData.forEach((w) => {
+      const val = w[field] || w[field.toLowerCase()] || "غير محدد";
+      counts[val] = (counts[val] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  };
+
+  const ageGroupCounts = {};
+  workersData.forEach((w) => {
+    const age = parseInt(w["العمر"] || w["age"] || 0);
+    let group = "غير محدد";
+    if (age > 0 && age <= 20) group = "18-20";
+    else if (age <= 30) group = "21-30";
+    else if (age <= 40) group = "31-40";
+    else if (age <= 50) group = "41-50";
+    else if (age > 50) group = "50+";
+    ageGroupCounts[group] = (ageGroupCounts[group] || 0) + 1;
+  });
+  const ageGroups = Object.entries(ageGroupCounts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+
+  res.json({
+    totalCitizens: workersData.length,
+    regions: countByField("المنطقة"),
+    professions: countByField("المهنة"),
+    ageGroups,
+    teams: countByField("فريق"),
+    villages: countByField("القرية"),
+  });
+});
+
 // ─── Feedback Routes ────────────────────────────────────────────────────────
 app.get("/api/feedback", authMiddleware, async (req, res) => {
   try {
