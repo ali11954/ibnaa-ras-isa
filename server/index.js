@@ -389,7 +389,7 @@ app.post("/api/admin/reject/:id", authMiddleware, adminMiddleware, async (req, r
 // ─── Data Routes (MongoDB-backed) ───────────────────────────────────────────
 app.get("/api/workers", authMiddleware, subscriberMiddleware, async (req, res) => {
   try {
-    const { page = 1, limit = 15, search = "", region = "", profession = "" } = req.query;
+    const { page = 1, limit = 15, search = "", region = "", profession = "", team = "" } = req.query;
     const filter = {};
     if (search) filter.$or = [
       { name: { $regex: search, $options: "i" } },
@@ -398,6 +398,7 @@ app.get("/api/workers", authMiddleware, subscriberMiddleware, async (req, res) =
     ];
     if (region) filter.region = region;
     if (profession) filter.profession = profession;
+    if (team) filter.teamNumber = parseInt(team);
     const total = await Worker.countDocuments(filter);
     const data = await Worker.find(filter).skip((page - 1) * limit).limit(parseInt(limit));
     const regionAgg = await Worker.aggregate([{ $group: { _id: "$region", count: { $sum: 1 } } }, { $sort: { count: -1 } }]);
@@ -478,7 +479,7 @@ app.get("/api/citizen-stats", authMiddleware, subscriberMiddleware, async (req, 
 });
 
 // ─── Worker Transfer Routes ─────────────────────────────────────────────────
-app.post("/api/workers/:id/transfer", authMiddleware, async (req, res) => {
+app.post("/api/workers/:id/transfer", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { toTeam } = req.body;
     const worker = await Worker.findById(req.params.id);
@@ -560,7 +561,7 @@ app.get("/api/team-stats", authMiddleware, subscriberMiddleware, async (req, res
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get("/api/export/workers", authMiddleware, async (req, res) => {
+app.get("/api/export/workers", authMiddleware, subscriberMiddleware, async (req, res) => {
   try {
     const { team, format } = req.query;
     const filter = team ? { teamNumber: parseInt(team) } : {};
