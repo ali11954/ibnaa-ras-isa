@@ -88,6 +88,15 @@ const Subscriber = mongoose.model("Subscriber", subscriberSchema);
 const Worker = mongoose.model("Worker", workerSchema);
 const Family = mongoose.model("Family", familySchema);
 
+const transferLogSchema = new mongoose.Schema({
+  workerId: { type: mongoose.Schema.Types.ObjectId, ref: "Worker" },
+  workerName: String,
+  fromTeam: Number,
+  toTeam: Number,
+  movedBy: String,
+}, { timestamps: true });
+const TransferLog = mongoose.model("TransferLog", transferLogSchema);
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function hashPassword(password) {
   return crypto.createHash("sha256").update(password).digest("hex");
@@ -328,7 +337,7 @@ app.post("/api/admin/reject/:id", authMiddleware, adminMiddleware, async (req, r
 });
 
 // ─── Data Routes (MongoDB-backed) ───────────────────────────────────────────
-app.get("/api/workers", authMiddleware, subscriberMiddleware, async (req, res) => {
+app.get("/api/workers", async (req, res) => {
   try {
     const { page = 1, limit = 15, search = "", region = "", profession = "" } = req.query;
     const filter = {};
@@ -354,7 +363,7 @@ app.get("/api/workers", authMiddleware, subscriberMiddleware, async (req, res) =
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get("/api/teams/:num/members", authMiddleware, subscriberMiddleware, async (req, res) => {
+app.get("/api/teams/:num/members", async (req, res) => {
   try {
     const team = parseInt(req.params.num);
     const members = await Worker.find({ teamNumber: team });
@@ -362,7 +371,7 @@ app.get("/api/teams/:num/members", authMiddleware, subscriberMiddleware, async (
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get("/api/families", authMiddleware, subscriberMiddleware, async (req, res) => {
+app.get("/api/families", async (req, res) => {
   try {
     const { page = 1, limit = 15, search = "" } = req.query;
     const filter = {};
@@ -381,7 +390,7 @@ app.get("/api/families", authMiddleware, subscriberMiddleware, async (req, res) 
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get("/api/stats", authMiddleware, subscriberMiddleware, async (req, res) => {
+app.get("/api/stats", async (req, res) => {
   try {
     const totalWorkers = await Worker.countDocuments();
     const totalFamilies = await Family.countDocuments();
@@ -398,7 +407,7 @@ app.get("/api/stats", authMiddleware, subscriberMiddleware, async (req, res) => 
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get("/api/citizen-stats", authMiddleware, subscriberMiddleware, async (req, res) => {
+app.get("/api/citizen-stats", async (req, res) => {
   try {
     const totalCitizens = await Worker.countDocuments();
     const regionAgg = await Worker.aggregate([{ $group: { _id: "$region", count: { $sum: 1 } } }, { $sort: { count: -1 } }]);
@@ -414,6 +423,63 @@ app.get("/api/citizen-stats", authMiddleware, subscriberMiddleware, async (req, 
       teams: teamAgg.map(t => ({ name: String(t._id), count: t.count })).filter(t => t.name !== "0"),
       villages: villageAgg.map(v => ({ name: v._id, count: v.count })).filter(v => v.name),
     });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Worker Transfer Routes ─────────────────────────────────────────────────
+app.post("/api/workers/:id/transfer", authMiddleware, async (req, res) => {
+  try {
+    const { toTeam } = req.body;
+    const worker = await Worker.findById(req.params.id);
+    if (!worker) return res.status(404).json({ error: "Worker not found" });
+    const fromTeam = worker.teamNumber;
+    worker.teamNumber = toTeam;
+    await worker.save();
+    await TransferLog.create({
+      workerId: worker._id,
+      workerName: worker.name,
+      fromTeam,
+      toTeam,
+      movedBy: req.user.name || req.user.username,
+    });
+    res.json({ message: "Worker transferred", worker });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get("/api/transfer-log", authMiddleware, async (req, res) => {
+  try {
+    const logs = await TransferLog.find().sort({ createdAt: -1 }).limit(200);
+    res.json(logs);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get("/api/export/workers", async (req, res) => {
+  try {
+    const { team, format } = req.query;
+    const filter = team ? { teamNumber: parseInt(team) } : {};
+    const workers = await Worker.find(filter).sort({ teamNumber: 1, name: 1 });
+    if (format === "excel") {
+      const data = workers.map((w, i) => ({
+        "#": i + 1,
+        "الاسم": w.name,
+        "الرقم الوطني": w.nationalId,
+        "العمر": w.age,
+        "الفئة العمرية": w.ageGroup,
+        "المنطقة": w.region,
+        "محل الميلاد": w.birthPlace,
+        "المهنة": w.profession,
+        "رقم الفرقة": w.teamNumber,
+        "ملاحظة": w.note,
+      }));
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "العمال");
+      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      res.setHeader("Content-Disposition", `attachment; filename=workers${team ? `_team${team}` : "_all"}.xlsx`);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      return res.send(buf);
+    }
+    res.json(workers);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

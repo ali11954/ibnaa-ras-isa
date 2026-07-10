@@ -19,7 +19,7 @@ function App() {
   const tabs = [
     { id: 'dashboard', label: 'لوحة التحكم', icon: '📊' },
     { id: 'workers', label: 'كشف العمال', icon: '👷' },
-    { id: 'families', label: 'فرق العمل', icon: '👨‍👩‍👧‍👦' },
+    { id: 'families', label: 'كشف المساعدات', icon: '👨‍👩‍👧‍👦' },
     { id: 'citizens', label: 'إحصاء المواطنين', icon: '📋' },
     { id: 'feedback', label: 'الملاحظات', icon: '💬' },
     { id: 'subscribe', label: 'الاشتراك', icon: '✉️' },

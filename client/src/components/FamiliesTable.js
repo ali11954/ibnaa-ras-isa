@@ -12,18 +12,16 @@ const FamiliesTable = () => {
   const [expandedTeam, setExpandedTeam] = useState(null);
   const [teamMembers, setTeamMembers] = useState([]);
   const [membersLoading, setMembersLoading] = useState(false);
-  const [blocked, setBlocked] = useState(false);
 
   const fetchFamilies = useCallback(async () => {
-    if (!token) { setBlocked(true); return; }
     setLoading(true);
     try {
       const params = new URLSearchParams({ page, limit: 15, search });
-      const res = await axios.get(`/api/families?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await axios.get(`/api/families?${params}`, { headers });
       setFamilies(res.data.data || []);
       setPagination(res.data.pagination || {});
-      setBlocked(false);
-    } catch (err) { if (err.response?.status === 403) setBlocked(true); }
+    } catch (err) {}
     setLoading(false);
   }, [page, search, token]);
 
@@ -34,25 +32,13 @@ const FamiliesTable = () => {
   const toggleTeamMembers = async (teamNum) => {
     if (expandedTeam === teamNum) { setExpandedTeam(null); return; }
     setExpandedTeam(teamNum); setMembersLoading(true);
-    try { const res = await axios.get(`/api/teams/${teamNum}/members`, { headers: { Authorization: `Bearer ${token}` } }); setTeamMembers(res.data.members || []); }
-    catch (err) { setTeamMembers([]); }
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await axios.get(`/api/teams/${teamNum}/members`, { headers });
+      setTeamMembers(res.data.members || []);
+    } catch (err) { setTeamMembers([]); }
     setMembersLoading(false);
   };
-
-  if (blocked) return (
-    <div className="tab-section">
-      <div className="section-header">
-        <span className="section-badge">الأسر المستفيدة</span>
-        <h2 className="section-title">فرق <span className="gradient-text">العمل</span></h2>
-      </div>
-      <div className="locked-content">
-        <div className="locked-icon">🔒</div>
-        <h3>هذه البيانات متاحة للمشتركين فقط</h3>
-        <p>سجّل دخولك أو اشترك للوصول إلى بيانات الأسر المستفيدة</p>
-        <a href="#subscribe" className="btn-primary">اشترك الآن</a>
-      </div>
-    </div>
-  );
 
   const totalAmount = families.reduce((s,f)=>s+(f.totalAmount||0),0);
   const totalBens = families.reduce((s,f)=>s+(f.beneficiaries?f.beneficiaries.length:1),0);
@@ -60,8 +46,8 @@ const FamiliesTable = () => {
   return (
     <div className="tab-section">
       <div className="section-header">
-        <span className="section-badge">الأسر المستفيدة</span>
-        <h2 className="section-title">فرق <span className="gradient-text">العمل</span></h2>
+        <span className="section-badge">كشف المساعدات</span>
+        <h2 className="section-title">كشف <span className="gradient-text">المساعدات</span></h2>
       </div>
       <div className="filters-bar">
         <form onSubmit={handleSearch} className="filters-form">
