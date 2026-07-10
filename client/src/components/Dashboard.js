@@ -1,16 +1,44 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 
 const Dashboard = ({ onNavigate }) => {
+  const { token } = useAuth();
   const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [blocked, setBlocked] = useState(false);
 
-  useEffect(() => {
-    fetch('/api/stats')
-      .then(res => res.json())
-      .then(setStats)
-      .catch(() => {});
-  }, []);
+  const fetchStats = useCallback(async () => {
+    if (!token) { setBlocked(true); return; }
+    setLoading(true);
+    try {
+      const res = await axios.get('/api/stats', { headers: { Authorization: `Bearer ${token}` } });
+      setStats(res.data);
+      setBlocked(false);
+    } catch (err) {
+      if (err.response?.status === 403 || err.response?.status === 401) setBlocked(true);
+    }
+    setLoading(false);
+  }, [token]);
 
-  if (!stats) return <div className="spinner"></div>;
+  useEffect(() => { fetchStats(); }, [fetchStats]);
+
+  if (blocked) return (
+    <div className="tab-section">
+      <div className="section-header">
+        <span className="section-badge">لوحة التحكم</span>
+        <h2 className="section-title">نظرة <span className="gradient-text">عامة</span></h2>
+      </div>
+      <div className="locked-content">
+        <div className="locked-icon">🔒</div>
+        <h3>هذه البيانات متاحة للمشتركين فقط</h3>
+        <p>سجّل دخولك أو اشترك للوصول إلى البيانات</p>
+      </div>
+    </div>
+  );
+
+  if (loading) return <div className="spinner"></div>;
+  if (!stats) return null;
 
   return (
     <div className="tab-section">
