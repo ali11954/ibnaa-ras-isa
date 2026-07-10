@@ -143,7 +143,7 @@ async function seedExcelToMongo() {
     return;
   }
 
-  const wbWorkersPath = path.join(EXCEL_DIR, "كشف فرق عمال راس عيسى في ميناء راس عيسى.xlsx");
+  const wbWorkersPath = path.join(EXCEL_DIR, "كشف فرق عمال راس عيسى في ميناء راس عيسى1.xlsx");
   if (!fs.existsSync(wbWorkersPath)) {
     console.log("Excel files not found — skipping seed");
     return;
@@ -187,9 +187,9 @@ async function seedExcelToMongo() {
   try {
     const wb = XLSX.readFile(wbFamiliesPath);
     const ws = wb.Sheets["فرق العمل"];
-    const raw = XLSX.utils.sheet_to_json({ header: 1, defval: "" });
+    const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
     const families = [];
-    for (let i = 1; i < raw.length; i++) {
+    for (let i = 2; i < raw.length; i++) {
       const r = raw[i];
       const teamName = r[1];
       if (!teamName || typeof teamName !== "string") continue;
