@@ -284,7 +284,7 @@ app.post("/api/auth/login", async (req, res) => {
     const user = await User.findOne({ username, password: hashPassword(password) });
     if (!user) return res.status(401).json({ error: "Invalid credentials" });
     if (!user.approved) return res.status(403).json({ error: "Account pending approval" });
-    res.json({ token: user.token, role: user.role, name: user.name, username: user.username });
+    res.json({ token: user.token, user: { username: user.username, role: user.role, name: user.name, email: user.email } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -358,7 +358,7 @@ app.post("/api/auth/verify-otp", async (req, res) => {
     if (!user) return res.status(401).json({ error: "Invalid OTP" });
     user.token = crypto.randomBytes(32).toString("hex");
     await user.save();
-    res.json({ token: user.token, role: user.role, name: user.name, username: user.username });
+    res.json({ token: user.token, user: { username: user.username, role: user.role, name: user.name, email: user.email } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

@@ -174,7 +174,7 @@ const WorkersTable = () => {
         <>
           <div className="table-container">
             <table className="data-table">
-              <thead><tr><th>#</th><th>الاسم</th><th>الرقم الوطني</th><th>العمر</th><th>الفئة</th><th>المنطقة</th><th>الميلاد</th><th>المهنة</th><th>الفرقة</th><th>ملاحظة</th>{isAdmin && <th>إجراء</th>}</tr></thead>
+              <thead><tr><th>#</th><th>الاسم</th><th>الرقم الوطني</th><th>العمر</th><th>الفئة</th><th>المنطقة</th><th>الميلاد</th><th>المهنة</th><th>الفرقة</th><th>ملاحظة</th><th>الإجراءات</th></tr></thead>
               <tbody>{workers.map((w, i) => (
                 <tr key={w._id || i}>
                   <td>{(page-1)*26+i+1}</td>
@@ -187,10 +187,10 @@ const WorkersTable = () => {
                   <td><span className="badge badge-purple">{w.profession}</span></td>
                   <td><span className="badge badge-orange">الفرقة {w.teamNumber}</span></td>
                   <td><span className="badge badge-orange">{w.note}</span></td>
-                  {isAdmin && <td>
-                    <button className="btn-members" onClick={() => setTransferWorker(w)} style={{fontSize:'0.7rem'}}>نقل</button>
-                    <button className="btn-reject" onClick={() => handleDeleteWorker(w._id, w.name)} style={{fontSize:'0.7rem',marginLeft:'4px'}}>حذف</button>
-                  </td>}
+                  <td>
+                    {isAdmin && <button className="btn-members" onClick={() => setTransferWorker(w)} style={{fontSize:'0.7rem'}}>نقل</button>}
+                    {isAdmin && <button className="btn-reject" onClick={() => handleDeleteWorker(w._id, w.name)} style={{fontSize:'0.7rem',marginLeft:'4px'}}>حذف</button>}
+                  </td>
                 </tr>
               ))}</tbody>
             </table>
