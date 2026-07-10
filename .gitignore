@@ -1,0 +1,8 @@
+node_modules/
+.env
+data.json
+platform.db
+platform.db-wal
+platform.db-shm
+client/node_modules/
+client/build/
