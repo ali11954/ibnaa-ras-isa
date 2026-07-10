@@ -14,10 +14,9 @@ const Hero = () => (
         <span>منصة البيانات الموحدة</span>
       </div>
       <h1>
-        منصة <span className="gradient-text">ابناء راس عيسى</span><br />
-        لإدارة بيانات العمال والأسر المحتاجة
+        <span className="gradient-text">ابناء راس عيسى</span>
       </h1>
-      <p>منصة متكاملة لعرض وإدارة بيانات العمال والفرق والأسر المحتاجة في راس عيسى - الصليف. بيانات محدثة ودقيقة لاتخاذ القرارات.</p>
+      <p>منصة متكاملة لعرض وإدارة البيانات في راس عيسى - الصليف. بيانات محدثة ودقيقة لاتخاذ القرارات.</p>
       <div className="hero-buttons">
         <a href="#tabs" className="btn-primary">عرض البيانات ↓</a>
         <a href="#tabs" className="btn-secondary">اشترك الآن</a>

@@ -241,7 +241,7 @@ const AdminPanel = () => {
             </p>
             <ol style={{ color: 'var(--gray-light)', fontSize: '0.9rem', paddingRight: '1.2rem', marginBottom: '1rem' }}>
               <li>افتح <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>Google App Passwords</a></li>
-              <li>أنشئ كلمة مرور جديدة باسم "منصة ابناء راس عيسى"</li>
+              <li>أنشئ كلمة مرور جديدة باسم "ابناء راس عيسى"</li>
               <li>انسخ كلمة المرور وضعها هنا</li>
             </ol>
             <div className="form-group">

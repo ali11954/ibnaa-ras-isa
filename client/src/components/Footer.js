@@ -14,7 +14,7 @@ const Footer = () => {
         <div className="footer-content">
           <div className="footer-brand">
             <div className="logo">ابناء راس عيسى</div>
-            <p>منصة متكاملة لإدارة بيانات العمال والأسر المحتاجة في راس عيسى - الصليف.</p>
+            <p>منصة متكاملة للبيانات في راس عيسى - الصليف.</p>
           </div>
           <div className="footer-col">
             <h4>روابط سريعة</h4>
@@ -42,7 +42,7 @@ const Footer = () => {
           </div>
         </div>
         <div className="footer-bottom">
-          <span>&copy; {new Date().getFullYear()} منصة ابناء راس عيسى. جميع الحقوق محفوظة.</span>
+          <span>&copy; {new Date().getFullYear()} ابناء راس عيسى. جميع الحقوق محفوظة.</span>
         </div>
       </footer>
       <button className={`scroll-top ${showScroll ? 'visible' : ''}`} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}><FiArrowUp /></button>

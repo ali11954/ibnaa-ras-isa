@@ -54,9 +54,39 @@ const subscriberSchema = new mongoose.Schema({
   approved: { type: Boolean, default: false },
 }, { timestamps: true });
 
+const workerSchema = new mongoose.Schema({
+  nationalId: String,
+  name: String,
+  birthYear: Number,
+  age: Number,
+  ageGroup: String,
+  region: String,
+  birthPlace: String,
+  currentPlace: String,
+  profession: String,
+  teamNumber: Number,
+  note: String,
+}, { timestamps: true });
+
+const familySchema = new mongoose.Schema({
+  teamNumber: Number,
+  teamName: String,
+  memberCount: Number,
+  leader: String,
+  status: String,
+  village: String,
+  individualAmount: Number,
+  totalAmount: Number,
+  beneficiary: String,
+  reason: String,
+  beneficiaries: [String],
+}, { timestamps: true });
+
 const User = mongoose.model("User", userSchema);
 const Feedback = mongoose.model("Feedback", feedbackSchema);
 const Subscriber = mongoose.model("Subscriber", subscriberSchema);
+const Worker = mongoose.model("Worker", workerSchema);
+const Family = mongoose.model("Family", familySchema);
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function hashPassword(password) {
@@ -105,28 +135,86 @@ async function subscriberMiddleware(req, res, next) {
   } catch (e) { res.status(500).json({ error: e.message }); }
 }
 
-// ─── Excel Data ─────────────────────────────────────────────────────────────
-let workersData = [];
-let familiesData = [];
-
-function readExcelFiles() {
-  const wbPath = path.join(EXCEL_DIR, "workbook.xlsx");
-  if (!fs.existsSync(wbPath)) {
-    console.log("No Excel files found — using empty datasets");
-    workersData = [];
-    familiesData = [];
+// ─── Excel Data → MongoDB ───────────────────────────────────────────────────
+async function seedExcelToMongo() {
+  const workerCount = await Worker.countDocuments();
+  if (workerCount > 0) {
+    console.log(`MongoDB already has ${workerCount} workers — skipping seed`);
     return;
   }
+
+  const wbWorkersPath = path.join(EXCEL_DIR, "كشف فرق عمال راس عيسى في ميناء راس عيسى.xlsx");
+  if (!fs.existsSync(wbWorkersPath)) {
+    console.log("Excel files not found — skipping seed");
+    return;
+  }
+
   try {
-    const wb = XLSX.readFile(wbPath);
-    const sheets = wb.SheetNames;
-    workersData = XLSX.utils.sheet_to_json(wb.Sheets[sheets[0]] || []);
-    familiesData = sheets.length > 1 ? XLSX.utils.sheet_to_json(wb.Sheets[sheets[1]]) : [];
-    console.log(`Loaded ${workersData.length} workers, ${familiesData.length} families`);
+    const wb = XLSX.readFile(wbWorkersPath);
+    const ws = wb.Sheets["الكشف الكلي"];
+    const raw = XLSX.utils.sheet_to_json(ws);
+    const workers = [];
+    for (const row of raw) {
+      const name = row["__EMPTY_2"];
+      if (!name || typeof name !== "string" || name.length < 3) continue;
+      const age = parseInt(row["__EMPTY_4"]);
+      if (isNaN(age) || age < 10 || age > 100) continue;
+      workers.push({
+        nationalId: String(row["__EMPTY"] || ""),
+        name,
+        birthYear: parseInt(row["__EMPTY_3"]) || 0,
+        age,
+        ageGroup: String(row["__EMPTY_5"] || ""),
+        region: String(row["__EMPTY_6"] || ""),
+        birthPlace: String(row["__EMPTY_7"] || ""),
+        currentPlace: String(row["__EMPTY_8"] || ""),
+        profession: String(row["__EMPTY_9"] || ""),
+        teamNumber: parseInt(row["__EMPTY_10"]) || 0,
+        note: String(row["__EMPTY_12"] || ""),
+      });
+    }
+    if (workers.length > 0) {
+      await Worker.insertMany(workers);
+      console.log(`Seeded ${workers.length} workers to MongoDB`);
+    }
   } catch (e) {
-    console.error("Excel read error:", e.message);
-    workersData = [];
-    familiesData = [];
+    console.error("Worker seed error:", e.message);
+  }
+
+  const wbFamiliesPath = path.join(EXCEL_DIR, "الاسر المحتاجة.xlsx");
+  if (!fs.existsSync(wbFamiliesPath)) return;
+
+  try {
+    const wb = XLSX.readFile(wbFamiliesPath);
+    const ws = wb.Sheets["فرق العمل"];
+    const raw = XLSX.utils.sheet_to_json({ header: 1, defval: "" });
+    const families = [];
+    for (let i = 1; i < raw.length; i++) {
+      const r = raw[i];
+      const teamName = r[1];
+      if (!teamName || typeof teamName !== "string") continue;
+      const memberCount = parseInt(r[2]) || 0;
+      if (memberCount < 1) continue;
+      families.push({
+        teamNumber: parseInt(r[0]) || i,
+        teamName,
+        memberCount,
+        leader: String(r[3] || ""),
+        status: String(r[4] || ""),
+        village: String(r[5] || ""),
+        individualAmount: parseInt(r[6]) || 0,
+        totalAmount: parseInt(r[7]) || 0,
+        beneficiary: String(r[8] || ""),
+        reason: String(r[9] || ""),
+        beneficiaries: r[8] ? [String(r[8])] : [],
+      });
+    }
+    if (families.length > 0) {
+      await Family.insertMany(families);
+      console.log(`Seeded ${families.length} families to MongoDB`);
+    }
+  } catch (e) {
+    console.error("Family seed error:", e.message);
   }
 }
 
@@ -239,67 +327,94 @@ app.post("/api/admin/reject/:id", authMiddleware, adminMiddleware, async (req, r
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ─── Data Routes (Excel-backed) ─────────────────────────────────────────────
-app.get("/api/workers", authMiddleware, subscriberMiddleware, (req, res) => {
-  res.json(workersData);
-});
-
-app.get("/api/teams/:num/members", authMiddleware, subscriberMiddleware, (req, res) => {
-  const team = parseInt(req.params.num);
-  const members = workersData.filter((w) => {
-    const t = parseInt(w["فريق"] || w["team"] || 0);
-    return t === team;
-  });
-  res.json(members);
-});
-
-app.get("/api/families", authMiddleware, subscriberMiddleware, (req, res) => {
-  res.json(familiesData);
-});
-
-app.get("/api/stats", authMiddleware, subscriberMiddleware, (req, res) => {
-  res.json({
-    totalWorkers: workersData.length,
-    totalFamilies: familiesData.length,
-    totalTeams: [...new Set(workersData.map((w) => parseInt(w["فريق"] || w["team"] || 0)))].filter(Boolean).length,
-  });
-});
-
-app.get("/api/citizen-stats", authMiddleware, subscriberMiddleware, (req, res) => {
-  const countByField = (field) => {
-    const counts = {};
-    workersData.forEach((w) => {
-      const val = w[field] || w[field.toLowerCase()] || "غير محدد";
-      counts[val] = (counts[val] || 0) + 1;
+// ─── Data Routes (MongoDB-backed) ───────────────────────────────────────────
+app.get("/api/workers", authMiddleware, subscriberMiddleware, async (req, res) => {
+  try {
+    const { page = 1, limit = 15, search = "", region = "", profession = "" } = req.query;
+    const filter = {};
+    if (search) filter.$or = [
+      { name: { $regex: search, $options: "i" } },
+      { nationalId: { $regex: search, $options: "i" } },
+      { teamNumber: parseInt(search) || 0 },
+    ];
+    if (region) filter.region = region;
+    if (profession) filter.profession = profession;
+    const total = await Worker.countDocuments(filter);
+    const data = await Worker.find(filter).skip((page - 1) * limit).limit(parseInt(limit));
+    const regionAgg = await Worker.aggregate([{ $group: { _id: "$region", count: { $sum: 1 } } }, { $sort: { count: -1 } }]);
+    const profAgg = await Worker.aggregate([{ $group: { _id: "$profession", count: { $sum: 1 } } }, { $sort: { count: -1 } }]);
+    res.json({
+      data: data.map(w => ({ ...w.toObject(), id: w._id })),
+      pagination: { total, page: parseInt(page), limit: parseInt(limit), totalPages: Math.ceil(total / limit) },
+      filters: {
+        regions: regionAgg.map(r => ({ name: r._id, count: r.count })).filter(r => r.name),
+        professions: profAgg.map(p => ({ name: p._id, count: p.count })).filter(p => p.name),
+      },
     });
-    return Object.entries(counts)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count);
-  };
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
-  const ageGroupCounts = {};
-  workersData.forEach((w) => {
-    const age = parseInt(w["العمر"] || w["age"] || 0);
-    let group = "غير محدد";
-    if (age > 0 && age <= 20) group = "18-20";
-    else if (age <= 30) group = "21-30";
-    else if (age <= 40) group = "31-40";
-    else if (age <= 50) group = "41-50";
-    else if (age > 50) group = "50+";
-    ageGroupCounts[group] = (ageGroupCounts[group] || 0) + 1;
-  });
-  const ageGroups = Object.entries(ageGroupCounts)
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+app.get("/api/teams/:num/members", authMiddleware, subscriberMiddleware, async (req, res) => {
+  try {
+    const team = parseInt(req.params.num);
+    const members = await Worker.find({ teamNumber: team });
+    res.json({ members: members.map(m => ({ ...m.toObject(), id: m._id })) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
-  res.json({
-    totalCitizens: workersData.length,
-    regions: countByField("المنطقة"),
-    professions: countByField("المهنة"),
-    ageGroups,
-    teams: countByField("فريق"),
-    villages: countByField("القرية"),
-  });
+app.get("/api/families", authMiddleware, subscriberMiddleware, async (req, res) => {
+  try {
+    const { page = 1, limit = 15, search = "" } = req.query;
+    const filter = {};
+    if (search) filter.$or = [
+      { teamName: { $regex: search, $options: "i" } },
+      { leader: { $regex: search, $options: "i" } },
+      { beneficiary: { $regex: search, $options: "i" } },
+      { village: { $regex: search, $options: "i" } },
+    ];
+    const total = await Family.countDocuments(filter);
+    const data = await Family.find(filter).skip((page - 1) * limit).limit(parseInt(limit));
+    res.json({
+      data: data.map(f => ({ ...f.toObject(), id: f._id })),
+      pagination: { total, page: parseInt(page), limit: parseInt(limit), totalPages: Math.ceil(total / limit) },
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get("/api/stats", authMiddleware, subscriberMiddleware, async (req, res) => {
+  try {
+    const totalWorkers = await Worker.countDocuments();
+    const totalFamilies = await Family.countDocuments();
+    const regionAgg = await Worker.aggregate([{ $group: { _id: "$region", count: { $sum: 1 } } }]);
+    const profAgg = await Worker.aggregate([{ $group: { _id: "$profession", count: { $sum: 1 } } }]);
+    const teamAgg = await Worker.aggregate([{ $group: { _id: "$teamNumber" } }]);
+    res.json({
+      totalWorkers,
+      totalFamilies,
+      totalTeams: teamAgg.filter(t => t._id > 0).length,
+      regions: regionAgg.map(r => ({ name: r._id, count: r.count })).filter(r => r.name),
+      professions: profAgg.map(p => ({ name: p._id, count: p.count })).filter(p => p.name),
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get("/api/citizen-stats", authMiddleware, subscriberMiddleware, async (req, res) => {
+  try {
+    const totalCitizens = await Worker.countDocuments();
+    const regionAgg = await Worker.aggregate([{ $group: { _id: "$region", count: { $sum: 1 } } }, { $sort: { count: -1 } }]);
+    const profAgg = await Worker.aggregate([{ $group: { _id: "$profession", count: { $sum: 1 } } }, { $sort: { count: -1 } }]);
+    const ageAgg = await Worker.aggregate([{ $group: { _id: "$ageGroup", count: { $sum: 1 } } }, { $sort: { _id: 1 } }]);
+    const teamAgg = await Worker.aggregate([{ $group: { _id: "$teamNumber", count: { $sum: 1 } } }, { $sort: { _id: 1 } }]);
+    const villageAgg = await Family.aggregate([{ $group: { _id: "$village", count: { $sum: 1 } } }, { $sort: { count: -1 } }]);
+    res.json({
+      totalCitizens,
+      regions: regionAgg.map(r => ({ name: r._id, count: r.count })).filter(r => r.name),
+      professions: profAgg.map(p => ({ name: p._id, count: p.count })).filter(p => p.name),
+      ageGroups: ageAgg.map(a => ({ name: a._id, count: a.count })).filter(a => a.name),
+      teams: teamAgg.map(t => ({ name: String(t._id), count: t.count })).filter(t => t.name !== "0"),
+      villages: villageAgg.map(v => ({ name: v._id, count: v.count })).filter(v => v.name),
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ─── Feedback Routes ────────────────────────────────────────────────────────
@@ -398,7 +513,7 @@ async function start() {
     await mongoose.connect(MONGO_URI);
     console.log("Connected to MongoDB Atlas");
 
-    readExcelFiles();
+    await seedExcelToMongo();
 
     const adminExists = await User.findOne({ role: "admin" });
     if (!adminExists) {

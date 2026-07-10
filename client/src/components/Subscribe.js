@@ -28,7 +28,7 @@ const Subscribe = () => {
     <div className="tab-section">
       <div className="section-header">
         <span className="section-badge">الاشتراك</span>
-        <h2 className="section-title">اشترك في <span className="gradient-text">منصة ابناء راس عيسى</span></h2>
+        <h2 className="section-title">اشترك في <span className="gradient-text">ابناء راس عيسى</span></h2>
         <p className="section-desc">سجل بياناتك للانضمام إلى المنصة. حسابك سيكون في انتظار موافقة المدير قبل التفعيل.</p>
       </div>
 
