@@ -152,7 +152,7 @@ async function seedExcelToMongo() {
     return;
   }
 
-  const wbWorkersPath = path.join(EXCEL_DIR, "كشف فرق عمال راس عيسى في ميناء راس عيسى1.xlsx");
+  const wbWorkersPath = path.join(EXCEL_DIR, "كشف فرق راس عيسى.xlsx");
   if (!fs.existsSync(wbWorkersPath)) {
     console.log("Excel files not found — skipping seed");
     return;
@@ -161,25 +161,28 @@ async function seedExcelToMongo() {
   try {
     const wb = XLSX.readFile(wbWorkersPath);
     const ws = wb.Sheets["الكشف الكلي"];
-    const raw = XLSX.utils.sheet_to_json(ws);
+    const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
     const workers = [];
-    for (const row of raw) {
-      const name = row["__EMPTY_2"];
+    for (let i = 2; i < raw.length; i++) {
+      const r = raw[i];
+      const name = r[2];
       if (!name || typeof name !== "string" || name.length < 3) continue;
-      const age = parseInt(row["__EMPTY_4"]);
-      if (isNaN(age) || age < 10 || age > 100) continue;
+      let age = parseInt(r[4]);
+      const birthYear = parseInt(r[3]) || 0;
+      if (birthYear > 1900 && birthYear < 2030) age = 2026 - birthYear;
+      if (age > 100 || isNaN(age) || age < 1) age = 30;
       workers.push({
-        nationalId: String(row["__EMPTY"] || ""),
+        nationalId: String(r[1] || ""),
         name,
-        birthYear: parseInt(row["__EMPTY_3"]) || 0,
+        birthYear,
         age,
-        ageGroup: String(row["__EMPTY_5"] || ""),
-        region: String(row["__EMPTY_6"] || ""),
-        birthPlace: String(row["__EMPTY_7"] || ""),
-        currentPlace: String(row["__EMPTY_8"] || ""),
-        profession: String(row["__EMPTY_9"] || ""),
-        teamNumber: parseInt(row["__EMPTY_10"]) || 0,
-        note: String(row["__EMPTY_12"] || ""),
+        ageGroup: String(r[5] || ""),
+        region: String(r[6] || ""),
+        birthPlace: String(r[7] || ""),
+        currentPlace: String(r[8] || ""),
+        profession: String(r[9] || ""),
+        teamNumber: parseInt(r[10]) || 0,
+        note: String(r[12] || ""),
       });
     }
     if (workers.length > 0) {
