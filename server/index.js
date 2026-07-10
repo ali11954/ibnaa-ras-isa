@@ -1,4 +1,6 @@
 require("dotenv").config();
+const dns = require("dns");
+dns.setServers(["8.8.8.8", "8.8.4.4"]);
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
@@ -77,9 +79,8 @@ const familySchema = new mongoose.Schema({
   village: String,
   individualAmount: Number,
   totalAmount: Number,
-  beneficiary: String,
   reason: String,
-  beneficiaries: [String],
+  beneficiaries: [{ name: String, amount: Number }],
 }, { timestamps: true });
 
 const User = mongoose.model("User", userSchema);
@@ -198,29 +199,75 @@ async function seedExcelToMongo() {
 
   try {
     const wb = XLSX.readFile(wbFamiliesPath);
-    const ws = wb.Sheets["فرق العمل"];
-    const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
-    const families = [];
-    for (let i = 2; i < raw.length; i++) {
-      const r = raw[i];
+    const familyMap = {};
+
+    // Sheet 1: الكشف الحديث - has Name(Amount) format
+    const rawH = XLSX.utils.sheet_to_json(wb.Sheets["الكشف الحديث"], { header: 1, defval: "" });
+    for (let i = 2; i < rawH.length; i++) {
+      const r = rawH[i];
       const teamName = r[1];
       if (!teamName || typeof teamName !== "string") continue;
-      const memberCount = parseInt(r[2]) || 0;
-      if (memberCount < 1) continue;
-      families.push({
-        teamNumber: parseInt(r[0]) || i,
-        teamName,
-        memberCount,
-        leader: String(r[3] || ""),
-        status: String(r[4] || ""),
+      const teamNum = parseInt(r[0]) || 0;
+      const benefRaw = String(r[8] || "");
+      const beneficiaries = [];
+      const matches = benefRaw.match(/([^(]+)\((\d+)\)/g);
+      if (matches) {
+        matches.forEach(m => {
+          const parts = m.match(/([^(]+)\((\d+)\)/);
+          if (parts) {
+            beneficiaries.push({ name: parts[1].trim(), amount: parseInt(parts[2]) || 0 });
+          }
+        });
+      }
+      familyMap[teamNum] = {
+        teamNumber: teamNum, teamName,
+        leader: String(r[3] || ""), status: String(r[4] || ""),
         village: String(r[5] || ""),
         individualAmount: parseInt(r[6]) || 0,
         totalAmount: parseInt(r[7]) || 0,
-        beneficiary: String(r[8] || ""),
-        reason: String(r[9] || ""),
-        beneficiaries: r[8] ? [String(r[8])] : [],
-      });
+        reason: String(r[13] || ""),
+        beneficiaries,
+      };
     }
+
+    // Sheet 2: فرق العمل - multiple names separated by +, no amounts
+    const rawF = XLSX.utils.sheet_to_json(wb.Sheets["فرق العمل"], { header: 1, defval: "" });
+    for (let i = 2; i < rawF.length; i++) {
+      const r = rawF[i];
+      const teamName = r[1];
+      if (!teamName || typeof teamName !== "string") continue;
+      const teamNum = parseInt(r[0]) || 0;
+      const existing = familyMap[teamNum];
+
+      // Parse multiple names separated by +
+      const benefRaw = String(r[8] || "");
+      const names = benefRaw.split("+").map(n => n.trim()).filter(n => n.length > 0);
+
+      if (names.length > 1) {
+        // Multiple beneficiaries: split total amount from sheet 1 equally
+        const total = existing ? existing.totalAmount : (parseInt(r[7]) || 0);
+        const perPerson = Math.floor(total / names.length);
+        const beneficiaries = names.map(name => ({ name, amount: perPerson }));
+
+        if (existing) {
+          existing.beneficiaries = beneficiaries;
+          existing.reason = String(r[9] || "");
+        } else {
+          familyMap[teamNum] = {
+            teamNumber: teamNum, teamName,
+            memberCount: parseInt(r[2]) || 0,
+            leader: String(r[3] || ""), status: String(r[4] || ""),
+            village: String(r[5] || ""),
+            individualAmount: parseInt(r[6]) || 0,
+            totalAmount: total,
+            reason: String(r[9] || ""),
+            beneficiaries,
+          };
+        }
+      }
+    }
+
+    const families = Object.values(familyMap);
     if (families.length > 0) {
       await Family.insertMany(families);
       console.log(`Seeded ${families.length} families to MongoDB`);
@@ -340,7 +387,7 @@ app.post("/api/admin/reject/:id", authMiddleware, adminMiddleware, async (req, r
 });
 
 // ─── Data Routes (MongoDB-backed) ───────────────────────────────────────────
-app.get("/api/workers", async (req, res) => {
+app.get("/api/workers", authMiddleware, subscriberMiddleware, async (req, res) => {
   try {
     const { page = 1, limit = 15, search = "", region = "", profession = "" } = req.query;
     const filter = {};
@@ -366,7 +413,7 @@ app.get("/api/workers", async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get("/api/teams/:num/members", async (req, res) => {
+app.get("/api/teams/:num/members", authMiddleware, subscriberMiddleware, async (req, res) => {
   try {
     const team = parseInt(req.params.num);
     const members = await Worker.find({ teamNumber: team });
@@ -374,15 +421,16 @@ app.get("/api/teams/:num/members", async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get("/api/families", async (req, res) => {
+app.get("/api/families", authMiddleware, subscriberMiddleware, async (req, res) => {
   try {
     const { page = 1, limit = 15, search = "" } = req.query;
     const filter = {};
     if (search) filter.$or = [
       { teamName: { $regex: search, $options: "i" } },
       { leader: { $regex: search, $options: "i" } },
-      { beneficiary: { $regex: search, $options: "i" } },
       { village: { $regex: search, $options: "i" } },
+      { reason: { $regex: search, $options: "i" } },
+      { "beneficiaries.name": { $regex: search, $options: "i" } },
     ];
     const total = await Family.countDocuments(filter);
     const data = await Family.find(filter).skip((page - 1) * limit).limit(parseInt(limit));
@@ -393,7 +441,7 @@ app.get("/api/families", async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get("/api/stats", async (req, res) => {
+app.get("/api/stats", authMiddleware, subscriberMiddleware, async (req, res) => {
   try {
     const totalWorkers = await Worker.countDocuments();
     const totalFamilies = await Family.countDocuments();
@@ -410,7 +458,7 @@ app.get("/api/stats", async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get("/api/citizen-stats", async (req, res) => {
+app.get("/api/citizen-stats", authMiddleware, subscriberMiddleware, async (req, res) => {
   try {
     const totalCitizens = await Worker.countDocuments();
     const regionAgg = await Worker.aggregate([{ $group: { _id: "$region", count: { $sum: 1 } } }, { $sort: { count: -1 } }]);
@@ -456,7 +504,63 @@ app.get("/api/transfer-log", authMiddleware, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get("/api/export/workers", async (req, res) => {
+// ─── Worker CRUD ─────────────────────────────────────────────────────────────
+app.post("/api/workers", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { name, nationalId, age, ageGroup, region, birthPlace, currentPlace, profession, teamNumber, note } = req.body;
+    const worker = await Worker.create({ name, nationalId, age, ageGroup, region, birthPlace, currentPlace, profession, teamNumber, note, birthYear: 2026 - age });
+    res.json(worker);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete("/api/workers/:id", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    await Worker.findByIdAndDelete(req.params.id);
+    res.json({ message: "Deleted" });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put("/api/workers/:id", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const worker = await Worker.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(worker);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Family CRUD ─────────────────────────────────────────────────────────────
+app.post("/api/families", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const family = await Family.create(req.body);
+    res.json(family);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put("/api/families/:id", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const family = await Family.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(family);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete("/api/families/:id", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    await Family.findByIdAndDelete(req.params.id);
+    res.json({ message: "Deleted" });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Sync: Get team stats from workers ───────────────────────────────────────
+app.get("/api/team-stats", authMiddleware, subscriberMiddleware, async (req, res) => {
+  try {
+    const stats = await Worker.aggregate([
+      { $group: { _id: "$teamNumber", count: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+    ]);
+    res.json(stats.filter(s => s._id > 0).map(s => ({ team: s._id, count: s.count })));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get("/api/export/workers", authMiddleware, async (req, res) => {
   try {
     const { team, format } = req.query;
     const filter = team ? { teamNumber: parseInt(team) } : {};
