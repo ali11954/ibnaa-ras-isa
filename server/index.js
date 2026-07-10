@@ -384,10 +384,12 @@ app.post("/api/email-config/test-email", authMiddleware, adminMiddleware, async 
 });
 
 // ─── Serve React Build ──────────────────────────────────────────────────────
-const buildPath = path.join(__dirname, "..", "build");
-if (fs.existsSync(buildPath)) {
-  app.use(express.static(buildPath));
-  app.get("*", (req, res) => res.sendFile(path.join(buildPath, "index.html")));
+const buildPath = path.join(__dirname, "..", "client", "build");
+const buildPathAlt = path.join(__dirname, "..", "build");
+const staticPath = fs.existsSync(buildPath) ? buildPath : buildPathAlt;
+if (fs.existsSync(staticPath)) {
+  app.use(express.static(staticPath));
+  app.get("*", (req, res) => res.sendFile(path.join(staticPath, "index.html")));
 }
 
 // ─── Startup ────────────────────────────────────────────────────────────────
