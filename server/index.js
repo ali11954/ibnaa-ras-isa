@@ -301,7 +301,7 @@ app.post("/api/auth/register", async (req, res) => {
 
 app.get("/api/auth/me", authMiddleware, (req, res) => {
   const u = req.user;
-  res.json({ username: u.username, name: u.name, role: u.role, email: u.email, phone: u.phone });
+  res.json({ user: { username: u.username, name: u.name, role: u.role, email: u.email, phone: u.phone } });
 });
 
 app.post("/api/auth/forgot-password", async (req, res) => {
