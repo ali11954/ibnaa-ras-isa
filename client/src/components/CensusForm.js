@@ -55,7 +55,10 @@ export default function CensusForm({ onSave, onCancel, editData }) {
       }
       setSaved(true);
       toast.success('تم حفظ بيانات الأسرة');
-    } catch (err) { toast.error('خطأ في الحفظ'); }
+    } catch (err) {
+      console.error('Census save error:', err);
+      toast.error('خطأ في الحفظ: ' + (err.response?.data?.error || err.message));
+    }
     setSaving(false);
   };
 
@@ -65,7 +68,7 @@ export default function CensusForm({ onSave, onCancel, editData }) {
     try {
       await axios.put(`/api/census/${censusId}`, { members }, { headers });
       toast.success('تم حفظ أفراد الأسرة');
-    } catch (err) { toast.error('خطأ في الحفظ'); }
+    } catch (err) { toast.error('خطأ في الحفظ: ' + (err.response?.data?.error || err.message)); }
     setSaving(false);
   };
 
@@ -75,7 +78,7 @@ export default function CensusForm({ onSave, onCancel, editData }) {
     try {
       await axios.put(`/api/census/${censusId}`, { housing }, { headers });
       toast.success('تم حفظ بيانات السكن');
-    } catch (err) { toast.error('خطأ في الحفظ'); }
+    } catch (err) { toast.error('خطأ في الحفظ: ' + (err.response?.data?.error || err.message)); }
     setSaving(false);
   };
 
@@ -85,7 +88,7 @@ export default function CensusForm({ onSave, onCancel, editData }) {
     try {
       await axios.put(`/api/census/${censusId}`, { migration }, { headers });
       toast.success('تم حفظ بيانات الهجرة');
-    } catch (err) { toast.error('خطأ في الحفظ'); }
+    } catch (err) { toast.error('خطأ في الحفظ: ' + (err.response?.data?.error || err.message)); }
     setSaving(false);
   };
 
@@ -95,7 +98,7 @@ export default function CensusForm({ onSave, onCancel, editData }) {
     try {
       await axios.put(`/api/census/${censusId}`, { diseases }, { headers });
       toast.success('تم حفظ بيانات الأمراض');
-    } catch (err) { toast.error('خطأ في الحفظ'); }
+    } catch (err) { toast.error('خطأ في الحفظ: ' + (err.response?.data?.error || err.message)); }
     setSaving(false);
   };
 

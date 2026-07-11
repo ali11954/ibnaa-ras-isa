@@ -44,10 +44,10 @@ const AdminPanel = () => {
       setSubscribers(sRes.data);
       setFeedbacks(fRes.data);
       const initSubPerms = {};
-      sRes.data.forEach(s => { initSubPerms[s.id] = s.permissions || []; });
+      sRes.data.forEach(s => { initSubPerms[s._id] = s.permissions || []; });
       setSubPermissions(prev => ({ ...initSubPerms, ...prev }));
       const initUserPerms = {};
-      uRes.data.forEach(u => { initUserPerms[u.id] = u.permissions || []; });
+      uRes.data.forEach(u => { initUserPerms[u._id] = u.permissions || []; });
       setUserPermissions(prev => ({ ...initUserPerms, ...prev }));
       try {
         const eRes = await axios.get('/api/email-config/status', { headers });
@@ -62,7 +62,7 @@ const AdminPanel = () => {
 
   const approveUser = async (id) => {
     const permissions = userPermissions[id] || [];
-    const userItem = users.find(u => u.id === id);
+    const userItem = users.find(u => u._id === id);
     const finalPerms = permissions.length > 0 ? permissions : (userItem?.permissions || []);
     if (finalPerms.length === 0) { toast.error('اختر صلاحية واحدة على الأقل'); return; }
     await axios.post(`/api/admin/approve/${id}`, { permissions: finalPerms }, { headers });
@@ -78,7 +78,7 @@ const AdminPanel = () => {
 
   const approveSubscriber = async (id) => {
     const permissions = subPermissions[id] || [];
-    const sub = subscribers.find(s => s.id === id);
+    const sub = subscribers.find(s => s._id === id);
     const finalPerms = permissions.length > 0 ? permissions : (sub?.permissions || []);
     if (finalPerms.length === 0) { toast.error('اختر صلاحية واحدة على الأقل'); return; }
     try {
@@ -147,18 +147,18 @@ const AdminPanel = () => {
           {pendingUsers.length === 0 ? <p className="empty-text">لا يوجد مستخدمون بانتظار الموافقة</p> : (
             <div className="admin-grid">
               {pendingUsers.map(u => (
-                <div className="admin-card pending" key={u.id}>
+                <div className="admin-card pending" key={u._id}>
                   <div className="admin-card-header">
                     <div className="admin-avatar">{u.name.charAt(0)}</div>
                     <div><strong>{u.name}</strong><span className="admin-email">{u.email || u.username}</span></div>
                   </div>
                   <div style={{ margin: '0.5rem 0' }}>
                     <span style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--gray-light)' }}>تحديد الصلاحيات:</span>
-                    <PermissionCheckboxes selected={userPermissions[u.id] || []} onChange={(p) => setUserPermissions({ ...userPermissions, [u.id]: p })} />
+                    <PermissionCheckboxes selected={userPermissions[u._id] || []} onChange={(p) => setUserPermissions({ ...userPermissions, [u._id]: p })} />
                   </div>
                   <div className="admin-card-actions">
-                    <button className="btn-approve" onClick={() => approveUser(u.id)}>موافقة</button>
-                    <button className="btn-reject" onClick={() => rejectUser(u.id)}>رفض</button>
+                    <button className="btn-approve" onClick={() => approveUser(u._id)}>موافقة</button>
+                    <button className="btn-reject" onClick={() => rejectUser(u._id)}>رفض</button>
                   </div>
                 </div>
               ))}
@@ -167,7 +167,7 @@ const AdminPanel = () => {
           <h3 style={{ marginTop: '2rem' }}>المستخدمون المعتمدون</h3>
           <div className="admin-grid">
             {approvedUsers.map(u => (
-              <div className="admin-card approved" key={u.id}>
+              <div className="admin-card approved" key={u._id}>
                 <div className="admin-card-header">
                   <div className="admin-avatar">{u.name.charAt(0)}</div>
                   <div>
@@ -194,7 +194,7 @@ const AdminPanel = () => {
           {pendingSubs.length === 0 ? <p className="empty-text">لا يوجد اشتراكات بانتظار</p> : (
             <div className="admin-grid">
               {pendingSubs.map(s => (
-                <div className="admin-card pending" key={s.id}>
+                <div className="admin-card pending" key={s._id}>
                   <div className="admin-card-header">
                     <div className="admin-avatar">&#9993;</div>
                     <div>
@@ -215,10 +215,10 @@ const AdminPanel = () => {
                   )}
                   <div style={{ margin: '0.5rem 0' }}>
                     <span style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--gray-light)' }}>تحديد الصلاحيات:</span>
-                    <PermissionCheckboxes selected={subPermissions[s.id] || s.permissions || []} onChange={(p) => setSubPermissions({ ...subPermissions, [s.id]: p })} />
+                    <PermissionCheckboxes selected={subPermissions[s._id] || s.permissions || []} onChange={(p) => setSubPermissions({ ...subPermissions, [s._id]: p })} />
                   </div>
                   <div className="admin-card-actions">
-                    <button className="btn-approve" onClick={() => approveSubscriber(s.id)}>موافقة</button>
+                    <button className="btn-approve" onClick={() => approveSubscriber(s._id)}>موافقة</button>
                   </div>
                 </div>
               ))}
@@ -227,7 +227,7 @@ const AdminPanel = () => {
           <h3 style={{ marginTop: '2rem' }}>المشتركون المعتمدون ({approvedSubs.length})</h3>
           <div className="admin-grid">
             {approvedSubs.map(s => (
-              <div className="admin-card approved" key={s.id}>
+              <div className="admin-card approved" key={s._id}>
                 <div className="admin-card-header">
                   <div className="admin-avatar green">&#10003;</div>
                   <div>
