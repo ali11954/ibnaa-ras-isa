@@ -165,6 +165,9 @@ export default function CensusForm({ onSave, onCancel, editData }) {
         try {
           const newFamily = {
             headName: m.name,
+            birthDate: m.birthDate || '',
+            nationalId: m.nationalId || '',
+            idType: m.idType || '',
             phone: '',
             currentFamilySize: 2,
             maleCount: m.gender === 'ذكر' ? 1 : 0,
@@ -185,7 +188,15 @@ export default function CensusForm({ onSave, onCancel, editData }) {
             financialStatus: '',
             notes: `أسرة جديدة مستقلة — رب الأسرة: ${m.name} — الزوجه: ${m.spouseName} — ابن/ابنة من الأسرة: ${family.headName} (${family.familyNumber})`,
             members: [
-              { seq: 1, name: m.spouseName, gender: m.gender === 'ذكر' ? 'أنثى' : 'ذكر', age: 0, birthDate: '', nationalId: '', idType: '', relationship: 'زوجة', parentName: '', maritalStatus: 'متزوج', familyStatus: 'يعيش مع العائلة', newFamilyNumber: '', spouseName: m.name, educationLevel: '', educationStatus: '', work: '', memberIncome: 0, healthStatus: '', chronicDisease: '', injury: '', disability: '', memberNotes: '' },
+              {
+                seq: 1, name: m.spouseName, gender: m.gender === 'ذكر' ? 'أنثى' : 'ذكر',
+                age: 0, birthDate: '', nationalId: '', idType: '',
+                relationship: 'زوجة', parentName: '', maritalStatus: 'متزوج',
+                familyStatus: 'يعيش مع العائلة', newFamilyNumber: '', spouseName: m.name,
+                spouseFrom: m.spouseFrom || '', spouseVillage: m.spouseVillage || '',
+                educationLevel: '', educationStatus: '', work: '', memberIncome: 0,
+                healthStatus: '', chronicDisease: '', injury: '', disability: '', memberNotes: '',
+              },
             ],
           };
           await axios.post('/api/census', newFamily, { headers });
@@ -328,9 +339,11 @@ export default function CensusForm({ onSave, onCancel, editData }) {
                       updated.gender = v === 'ابن' ? 'ذكر' : 'أنثى';
                     } else if (v === 'زوجة') {
                       updated.gender = 'أنثى';
+                      updated.maritalStatus = 'متزوج';
                       updated.parentName = '';
                     } else if (v === 'زوج') {
                       updated.gender = 'ذكر';
+                      updated.maritalStatus = 'متزوج';
                       updated.parentName = '';
                     } else {
                       updated.parentName = '';
@@ -384,7 +397,7 @@ export default function CensusForm({ onSave, onCancel, editData }) {
                       newMembers[i] = updated;
                       setMembers(newMembers);
                     })}
-                    {(m.maritalStatus === 'متزوج' || m.maritalStatus === 'مزوج') && isChild && (
+                    {(m.maritalStatus === 'متزوج' || m.maritalStatus === 'مزوج') && (
                       <>
                         <div className="form-group">
                           <label style={labelStyle}>الزوج/ة من:* </label>
