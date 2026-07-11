@@ -82,6 +82,7 @@ function Reports() {
     const d = filtered;
     let totalMale = 0, totalFemale = 0, totalPopulation = 0, totalIncome = 0, incomeCount = 0;
     let totalMarried = 0, totalDeceased = 0, totalMembers = 0, totalMigrants = 0;
+    const emptyVillage = () => ({ families: 0, population: 0, male: 0, female: 0, married: 0, deceased: 0, members: 0, totalIncome: 0, incomeCount: 0, financial: {}, housing: {}, housingCond: {}, mainIncome: {}, education: {}, health: {}, relationships: {}, maritalStatus: {} });
     const villages = {}, financial = {}, housing = {}, education = {}, health = {};
     const income = {}, genderByVillage = {}, housingCond = {}, mainIncome = {};
     const relationships = {}, maritalStatus = {};
@@ -100,26 +101,43 @@ function Reports() {
       if (!genderByVillage[v]) genderByVillage[v] = { male: 0, female: 0 };
       genderByVillage[v].male += c.maleCount || 0;
       genderByVillage[v].female += c.femaleCount || 0;
-      if (!villageComparison[v]) villageComparison[v] = { families: 0, population: 0, male: 0, female: 0, married: 0, deceased: 0, totalIncome: 0, incomeCount: 0, members: 0 };
-      villageComparison[v].families += 1;
-      villageComparison[v].population += (c.maleCount || 0) + (c.femaleCount || 0);
-      villageComparison[v].male += c.maleCount || 0;
-      villageComparison[v].female += c.femaleCount || 0;
-      villageComparison[v].married += c.marriedCount || 0;
-      villageComparison[v].deceased += c.deceasedCount || 0;
-      if (c.averageIncome > 0) { villageComparison[v].totalIncome += c.averageIncome; villageComparison[v].incomeCount += 1; }
-      financial[c.financialStatus || 'غير محدد'] = (financial[c.financialStatus || 'غير محدد'] || 0) + 1;
-      housing[(c.housing?.housingType) || 'غير محدد'] = (housing[(c.housing?.housingType) || 'غير محدد'] || 0) + 1;
-      housingCond[(c.housing?.housingCondition) || 'غير محدد'] = (housingCond[(c.housing?.housingCondition) || 'غير محدد'] || 0) + 1;
-      mainIncome[c.mainIncomeSource || 'غير محدد'] = (mainIncome[c.mainIncomeSource || 'غير محدد'] || 0) + 1;
+      if (!villageComparison[v]) villageComparison[v] = emptyVillage();
+      const vc = villageComparison[v];
+      vc.families += 1;
+      vc.population += (c.maleCount || 0) + (c.femaleCount || 0);
+      vc.male += c.maleCount || 0;
+      vc.female += c.femaleCount || 0;
+      vc.married += c.marriedCount || 0;
+      vc.deceased += c.deceasedCount || 0;
+      if (c.averageIncome > 0) { vc.totalIncome += c.averageIncome; vc.incomeCount += 1; }
+      const fKey = c.financialStatus || 'غير محدد';
+      vc.financial[fKey] = (vc.financial[fKey] || 0) + 1;
+      financial[fKey] = (financial[fKey] || 0) + 1;
+      const hKey = (c.housing?.housingType) || 'غير محدد';
+      vc.housing[hKey] = (vc.housing[hKey] || 0) + 1;
+      housing[hKey] = (housing[hKey] || 0) + 1;
+      const hcKey = (c.housing?.housingCondition) || 'غير محدد';
+      vc.housingCond[hcKey] = (vc.housingCond[hcKey] || 0) + 1;
+      housingCond[hcKey] = (housingCond[hcKey] || 0) + 1;
+      const miKey = c.mainIncomeSource || 'غير محدد';
+      vc.mainIncome[miKey] = (vc.mainIncome[miKey] || 0) + 1;
+      mainIncome[miKey] = (mainIncome[miKey] || 0) + 1;
       if (c.members && c.members.length > 0) {
         totalMembers += c.members.length;
-        villageComparison[v].members += c.members.length;
+        vc.members += c.members.length;
         c.members.forEach(m => {
-          education[m.educationLevel || 'غير محدد'] = (education[m.educationLevel || 'غير محدد'] || 0) + 1;
-          health[m.healthStatus || 'غير محدد'] = (health[m.healthStatus || 'غير محدد'] || 0) + 1;
-          relationships[m.relationship || 'غير محدد'] = (relationships[m.relationship || 'غير محدد'] || 0) + 1;
-          maritalStatus[m.maritalStatus || 'غير محدد'] = (maritalStatus[m.maritalStatus || 'غير محدد'] || 0) + 1;
+          const eKey = m.educationLevel || 'غير محدد';
+          vc.education[eKey] = (vc.education[eKey] || 0) + 1;
+          education[eKey] = (education[eKey] || 0) + 1;
+          const hsKey = m.healthStatus || 'غير محدد';
+          vc.health[hsKey] = (vc.health[hsKey] || 0) + 1;
+          health[hsKey] = (health[hsKey] || 0) + 1;
+          const rKey = m.relationship || 'غير محدد';
+          vc.relationships[rKey] = (vc.relationships[rKey] || 0) + 1;
+          relationships[rKey] = (relationships[rKey] || 0) + 1;
+          const msKey = m.maritalStatus || 'غير محدد';
+          vc.maritalStatus[msKey] = (vc.maritalStatus[msKey] || 0) + 1;
+          maritalStatus[msKey] = (maritalStatus[msKey] || 0) + 1;
         });
       }
       const inc = c.averageIncome || 0;
@@ -346,88 +364,176 @@ function Reports() {
                 Object.fromEntries(Object.entries(censusStats.genderByVillage).map(([k, v]) => [k, v.female])), 'إناث', '#ec4899'
               )}
 
-              <div className="chart-card" style={{ marginBottom: '1.5rem' }}>
-                <h3 style={{ marginBottom: '1rem' }}>📊 مقارنة شاملة بين القرى</h3>
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="data-table" style={{ fontSize: '0.8rem', minWidth: '700px' }}>
-                    <thead>
-                      <tr>
-                        <th style={{ position: 'sticky', right: 0, background: 'rgba(30,41,59,0.95)', zIndex: 1 }}>القرية</th>
-                        <th>الأسر</th>
-                        <th>السكان</th>
-                        <th>♂️ ذكور</th>
-                        <th>♀️ إناث</th>
-                        <th>💍 متزوجون</th>
-                        <th>🕊️ متوفون</th>
-                        <th>💰 متوسط الدخل</th>
-                        <th>📊 أفراد</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries(censusStats.villageComparison).sort((a, b) => b[1].population - a[1].population).map(([village, stats], i) => {
-                        const avgInc = stats.incomeCount > 0 ? Math.round(stats.totalIncome / stats.incomeCount) : 0;
-                        return (
-                          <tr key={village} style={{ background: i % 2 === 0 ? 'rgba(99,102,241,0.03)' : 'transparent' }}>
-                            <td style={{ fontWeight: '700', position: 'sticky', right: 0, background: i % 2 === 0 ? 'rgba(30,41,59,0.97)' : 'rgba(30,41,59,0.92)', zIndex: 1 }}>{village}</td>
-                            <td><span style={{ color: '#6366f1', fontWeight: '700' }}>{stats.families}</span></td>
-                            <td><span style={{ color: '#10b981', fontWeight: '700' }}>{stats.population}</span></td>
-                            <td><span style={{ color: '#06b6d4', fontWeight: '700' }}>{stats.male}</span></td>
-                            <td><span style={{ color: '#ec4899', fontWeight: '700' }}>{stats.female}</span></td>
-                            <td><span style={{ color: '#8b5cf6', fontWeight: '700' }}>{stats.married}</span></td>
-                            <td><span style={{ color: '#ef4444', fontWeight: '700' }}>{stats.deceased}</span></td>
-                            <td><span style={{ color: '#f59e0b', fontWeight: '700' }}>{avgInc.toLocaleString('ar-SA')} ر.ي</span></td>
-                            <td><span style={{ color: '#14b8a6', fontWeight: '700' }}>{stats.members}</span></td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.5rem', padding: '1rem 1.5rem', background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(236,72,153,0.1))', borderRadius: '16px', border: '1px solid rgba(99,102,241,0.2)' }}>
+                  <span style={{ fontSize: '2rem' }}>🏘️</span>
+                  <div>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '800', background: 'linear-gradient(135deg, #6366f1, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0 }}>مقارنة شاملة بين القرى</h3>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--gray)', margin: 0 }}>{Object.keys(censusStats.villageComparison).length} قرية — جميع البيانات مقارنة</p>
+                  </div>
                 </div>
-                <div style={{ marginTop: '1rem' }}>
-                  <h4 style={{ fontSize: '0.85rem', marginBottom: '0.8rem', color: 'var(--gray-light)' }}>مقارنة الأسر والسكان والدخل</h4>
-                  {Object.entries(censusStats.villageComparison).sort((a, b) => b[1].population - a[1].population).map(([village, stats], i) => {
-                    const maxPop = Math.max(...Object.values(censusStats.villageComparison).map(s => s.population), 1);
-                    const maxInc = Math.max(...Object.values(censusStats.villageComparison).map(s => s.incomeCount > 0 ? Math.round(s.totalIncome / s.incomeCount) : 0), 1);
-                    const avgInc = stats.incomeCount > 0 ? Math.round(stats.totalIncome / stats.incomeCount) : 0;
-                    const popPct = Math.round((stats.population / maxPop) * 100);
-                    const incPct = Math.round((avgInc / maxInc) * 100);
-                    return (
-                      <div key={village} style={{ marginBottom: '1rem' }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.4rem', color: 'var(--gray-light)' }}>{village} — {stats.families} أسرة</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '3px' }}>
-                          <span style={{ minWidth: '50px', fontSize: '0.7rem', color: '#6366f1' }}>سكان</span>
-                          <div style={{ flex: 1, height: '14px', background: 'rgba(99,102,241,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
-                            <div style={{ width: `${popPct}%`, height: '100%', background: 'linear-gradient(90deg, #6366f1, #818cf8)', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: popPct > 25 ? 'flex-end' : 'flex-start', padding: '0 0.3rem' }}>
-                              <span style={{ fontSize: '0.65rem', color: 'white', fontWeight: '700' }}>{stats.population}</span>
+
+                {Object.entries(censusStats.villageComparison).sort((a, b) => b[1].population - a[1].population).map(([village, vc], vi) => {
+                  const avgInc = vc.incomeCount > 0 ? Math.round(vc.totalIncome / vc.incomeCount) : 0;
+                  const topFinancial = Object.entries(vc.financial).sort((a, b) => b[1] - a[1])[0];
+                  const topHousing = Object.entries(vc.housing).sort((a, b) => b[1] - a[1])[0];
+                  const topIncome = Object.entries(vc.mainIncome).sort((a, b) => b[1] - a[1])[0];
+                  const topEdu = Object.entries(vc.education).sort((a, b) => b[1] - a[1])[0];
+                  const topHealth = Object.entries(vc.health).sort((a, b) => b[1] - a[1])[0];
+                  const gradientColors = [
+                    'linear-gradient(135deg, #6366f1, #818cf8)',
+                    'linear-gradient(135deg, #ec4899, #f472b6)',
+                    'linear-gradient(135deg, #06b6d4, #22d3ee)',
+                    'linear-gradient(135deg, #10b981, #34d399)',
+                    'linear-gradient(135deg, #f59e0b, #fbbf24)',
+                  ];
+                  const colorIdx = vi % gradientColors.length;
+
+                  return (
+                    <div key={village} style={{ marginBottom: '1.5rem', borderRadius: '20px', border: '1px solid rgba(99,102,241,0.15)', overflow: 'hidden', background: 'rgba(15,23,42,0.4)' }}>
+                      <div style={{ background: gradientColors[colorIdx], padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                          <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: '900', color: 'white' }}>{vi + 1}</div>
+                          <div>
+                            <h4 style={{ color: 'white', fontSize: '1.1rem', fontWeight: '800', margin: 0 }}>{village}</h4>
+                            <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.75rem' }}>{vc.families} أسرة — {vc.members} فرد</span>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap' }}>
+                          {[['👥', vc.population, 'سكان'], ['♂️', vc.male, 'ذكور'], ['♀️', vc.female, 'إناث'], ['💰', avgInc.toLocaleString('ar-SA'), 'ر.ي دخل']].map(([icon, val, lbl]) => (
+                            <div key={lbl} style={{ textAlign: 'center', background: 'rgba(255,255,255,0.15)', borderRadius: '12px', padding: '0.4rem 0.8rem', minWidth: '70px' }}>
+                              <div style={{ fontSize: '1.1rem' }}>{icon}</div>
+                              <div style={{ fontSize: '1rem', fontWeight: '800', color: 'white' }}>{val}</div>
+                              <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.8)' }}>{lbl}</div>
                             </div>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '3px' }}>
-                          <span style={{ minWidth: '50px', fontSize: '0.7rem', color: '#06b6d4' }}>ذكور</span>
-                          <div style={{ flex: 1, height: '14px', background: 'rgba(99,102,241,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
-                            <div style={{ width: `${Math.round((stats.male / Math.max(stats.population, 1)) * 100)}%`, height: '100%', background: 'linear-gradient(90deg, #06b6d4, #22d3ee)', borderRadius: '4px' }} />
-                          </div>
-                          <span style={{ fontSize: '0.65rem', color: '#06b6d4', fontWeight: '700', minWidth: '30px' }}>{stats.male}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '3px' }}>
-                          <span style={{ minWidth: '50px', fontSize: '0.7rem', color: '#ec4899' }}>إناث</span>
-                          <div style={{ flex: 1, height: '14px', background: 'rgba(99,102,241,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
-                            <div style={{ width: `${Math.round((stats.female / Math.max(stats.population, 1)) * 100)}%`, height: '100%', background: 'linear-gradient(90deg, #ec4899, #f472b6)', borderRadius: '4px' }} />
-                          </div>
-                          <span style={{ fontSize: '0.65rem', color: '#ec4899', fontWeight: '700', minWidth: '30px' }}>{stats.female}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span style={{ minWidth: '50px', fontSize: '0.7rem', color: '#f59e0b' }}>دخل</span>
-                          <div style={{ flex: 1, height: '14px', background: 'rgba(99,102,241,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
-                            <div style={{ width: `${incPct}%`, height: '100%', background: 'linear-gradient(90deg, #f59e0b, #fbbf24)', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: incPct > 25 ? 'flex-end' : 'flex-start', padding: '0 0.3rem' }}>
-                              <span style={{ fontSize: '0.65rem', color: 'white', fontWeight: '700' }}>{avgInc.toLocaleString('ar-SA')}</span>
-                            </div>
-                          </div>
+                          ))}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
+
+                      <div style={{ padding: '1.2rem 1.5rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                          <div style={{ background: 'rgba(99,102,241,0.05)', borderRadius: '12px', padding: '0.8rem', border: '1px solid rgba(99,102,241,0.1)' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--gray-light)', marginBottom: '0.5rem' }}>📊 الحالة المادية</div>
+                            {Object.entries(vc.financial).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+                              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '4px' }}>
+                                <div style={{ flex: 1, height: '10px', background: 'rgba(99,102,241,0.06)', borderRadius: '5px', overflow: 'hidden' }}>
+                                  <div style={{ width: `${Math.round((v / vc.families) * 100)}%`, height: '100%', background: k === 'جيدة' ? '#10b981' : k === 'سيئة' ? '#ef4444' : '#f59e0b', borderRadius: '5px' }} />
+                                </div>
+                                <span style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--gray-light)', minWidth: '60px' }}>{k}</span>
+                                <span style={{ fontSize: '0.7rem', fontWeight: '700', color: '#6366f1' }}>{v}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div style={{ background: 'rgba(236,72,153,0.05)', borderRadius: '12px', padding: '0.8rem', border: '1px solid rgba(236,72,153,0.1)' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--gray-light)', marginBottom: '0.5rem' }}>🏠 نوع السكن</div>
+                            {Object.entries(vc.housing).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+                              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '4px' }}>
+                                <div style={{ flex: 1, height: '10px', background: 'rgba(236,72,153,0.06)', borderRadius: '5px', overflow: 'hidden' }}>
+                                  <div style={{ width: `${Math.round((v / vc.families) * 100)}%`, height: '100%', background: '#ec4899', borderRadius: '5px' }} />
+                                </div>
+                                <span style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--gray-light)', minWidth: '60px' }}>{k}</span>
+                                <span style={{ fontSize: '0.7rem', fontWeight: '700', color: '#ec4899' }}>{v}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div style={{ background: 'rgba(6,182,212,0.05)', borderRadius: '12px', padding: '0.8rem', border: '1px solid rgba(6,182,212,0.1)' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--gray-light)', marginBottom: '0.5rem' }}>💰 مصدر الدخل</div>
+                            {Object.entries(vc.mainIncome).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+                              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '4px' }}>
+                                <div style={{ flex: 1, height: '10px', background: 'rgba(6,182,212,0.06)', borderRadius: '5px', overflow: 'hidden' }}>
+                                  <div style={{ width: `${Math.round((v / vc.families) * 100)}%`, height: '100%', background: '#06b6d4', borderRadius: '5px' }} />
+                                </div>
+                                <span style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--gray-light)', minWidth: '60px' }}>{k}</span>
+                                <span style={{ fontSize: '0.7rem', fontWeight: '700', color: '#06b6d4' }}>{v}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div style={{ background: 'rgba(16,185,129,0.05)', borderRadius: '12px', padding: '0.8rem', border: '1px solid rgba(16,185,129,0.1)' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--gray-light)', marginBottom: '0.5rem' }}>🎓 المستوى التعليمي</div>
+                            {Object.entries(vc.education).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+                              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '4px' }}>
+                                <div style={{ flex: 1, height: '10px', background: 'rgba(16,185,129,0.06)', borderRadius: '5px', overflow: 'hidden' }}>
+                                  <div style={{ width: `${Math.round((v / Math.max(vc.members, 1)) * 100)}%`, height: '100%', background: '#10b981', borderRadius: '5px' }} />
+                                </div>
+                                <span style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--gray-light)', minWidth: '60px' }}>{k}</span>
+                                <span style={{ fontSize: '0.7rem', fontWeight: '700', color: '#10b981' }}>{v}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div style={{ background: 'rgba(139,92,246,0.05)', borderRadius: '12px', padding: '0.8rem', border: '1px solid rgba(139,92,246,0.1)' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--gray-light)', marginBottom: '0.5rem' }}>❤️ الحالة الصحية</div>
+                            {Object.entries(vc.health).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+                              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '4px' }}>
+                                <div style={{ flex: 1, height: '10px', background: 'rgba(139,92,246,0.06)', borderRadius: '5px', overflow: 'hidden' }}>
+                                  <div style={{ width: `${Math.round((v / Math.max(vc.members, 1)) * 100)}%`, height: '100%', background: '#8b5cf6', borderRadius: '5px' }} />
+                                </div>
+                                <span style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--gray-light)', minWidth: '60px' }}>{k}</span>
+                                <span style={{ fontSize: '0.7rem', fontWeight: '700', color: '#8b5cf6' }}>{v}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div style={{ background: 'rgba(245,158,11,0.05)', borderRadius: '12px', padding: '0.8rem', border: '1px solid rgba(245,158,11,0.1)' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--gray-light)', marginBottom: '0.5rem' }}>💍 الحالة الاجتماعية</div>
+                            {Object.entries(vc.maritalStatus).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+                              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '4px' }}>
+                                <div style={{ flex: 1, height: '10px', background: 'rgba(245,158,11,0.06)', borderRadius: '5px', overflow: 'hidden' }}>
+                                  <div style={{ width: `${Math.round((v / Math.max(vc.members, 1)) * 100)}%`, height: '100%', background: '#f59e0b', borderRadius: '5px' }} />
+                                </div>
+                                <span style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--gray-light)', minWidth: '60px' }}>{k}</span>
+                                <span style={{ fontSize: '0.7rem', fontWeight: '700', color: '#f59e0b' }}>{v}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div style={{ background: 'rgba(239,68,68,0.05)', borderRadius: '12px', padding: '0.8rem', border: '1px solid rgba(239,68,68,0.1)' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--gray-light)', marginBottom: '0.5rem' }}>👨‍👩‍👧 صلة القرابة</div>
+                            {Object.entries(vc.relationships).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+                              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '4px' }}>
+                                <div style={{ flex: 1, height: '10px', background: 'rgba(239,68,68,0.06)', borderRadius: '5px', overflow: 'hidden' }}>
+                                  <div style={{ width: `${Math.round((v / Math.max(vc.members, 1)) * 100)}%`, height: '100%', background: '#ef4444', borderRadius: '5px' }} />
+                                </div>
+                                <span style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--gray-light)', minWidth: '60px' }}>{k}</span>
+                                <span style={{ fontSize: '0.7rem', fontWeight: '700', color: '#ef4444' }}>{v}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div style={{ background: 'rgba(20,184,166,0.05)', borderRadius: '12px', padding: '0.8rem', border: '1px solid rgba(20,184,166,0.1)' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--gray-light)', marginBottom: '0.5rem' }}>🏠 حالة السكن</div>
+                            {Object.entries(vc.housingCond).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+                              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '4px' }}>
+                                <div style={{ flex: 1, height: '10px', background: 'rgba(20,184,166,0.06)', borderRadius: '5px', overflow: 'hidden' }}>
+                                  <div style={{ width: `${Math.round((v / vc.families) * 100)}%`, height: '100%', background: '#14b8a6', borderRadius: '5px' }} />
+                                </div>
+                                <span style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--gray-light)', minWidth: '60px' }}>{k}</span>
+                                <span style={{ fontSize: '0.7rem', fontWeight: '700', color: '#14b8a6' }}>{v}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '0.5rem' }}>
+                          {[
+                            ['💍 متزوجون', vc.married, '#8b5cf6'],
+                            ['🕊️ متوفون', vc.deceased, '#ef4444'],
+                            ['♂️ ذكور', vc.male, '#06b6d4'],
+                            ['♀️ إناث', vc.female, '#ec4899'],
+                          ].map(([lbl, val, color]) => (
+                            <div key={lbl} style={{ textAlign: 'center', padding: '0.5rem', borderRadius: '10px', background: `${color}10`, border: `1px solid ${color}20` }}>
+                              <div style={{ fontSize: '1rem', fontWeight: '800', color }}>{val}</div>
+                              <div style={{ fontSize: '0.65rem', color: 'var(--gray)' }}>{lbl}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}
