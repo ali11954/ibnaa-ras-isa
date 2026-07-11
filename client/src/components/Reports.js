@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
@@ -12,6 +12,7 @@ function Reports() {
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({ search: '', region: '', profession: '', team: '' });
   const [summary, setSummary] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const headers = { Authorization: `Bearer ${token}` };
   const canWorkers = isAdmin || hasPermission('workers');
@@ -28,29 +29,31 @@ function Reports() {
     }
   }, [locked, canWorkers, canFamilies, canCensus, reportType]);
 
-  useEffect(() => {
+  const fetchData = useCallback(async () => {
     if (!reportType || locked) return;
-    let cancelled = false;
     setLoading(true);
     setSummary(null);
-    const fetchAll = async () => {
-      try {
-        if (reportType === 'workers') {
-          const [wRes, sRes] = await Promise.all([axios.get('/api/workers?limit=9999', { headers }), axios.get('/api/stats', { headers })]);
-          if (!cancelled) { setData(Array.isArray(wRes.data) ? wRes.data : (wRes.data.workers || [])); setSummary(sRes.data || null); }
-        } else if (reportType === 'families') {
-          const [fRes, sRes] = await Promise.all([axios.get('/api/families?limit=9999', { headers }), axios.get('/api/families/summary', { headers })]);
-          if (!cancelled) { setData(Array.isArray(fRes.data) ? fRes.data : (fRes.data.families || [])); setSummary(sRes.data || null); }
-        } else {
-          const [cRes, sRes] = await Promise.all([axios.get('/api/census?limit=9999', { headers }), axios.get('/api/census/summary', { headers })]);
-          if (!cancelled) { setData(Array.isArray(cRes.data) ? cRes.data : (cRes.data.data || [])); setSummary(sRes.data || null); }
-        }
-      } catch (err) { if (!cancelled) { setData([]); setSummary(null); } }
-      if (!cancelled) setLoading(false);
-    };
-    fetchAll();
-    return () => { cancelled = true; };
-  }, [reportType, token, locked]);
+    try {
+      if (reportType === 'workers') {
+        const [wRes, sRes] = await Promise.all([axios.get('/api/workers?limit=9999', { headers }), axios.get('/api/stats', { headers })]);
+        setData(Array.isArray(wRes.data) ? wRes.data : (wRes.data.workers || []));
+        setSummary(sRes.data || null);
+      } else if (reportType === 'families') {
+        const [fRes, sRes] = await Promise.all([axios.get('/api/families?limit=9999', { headers }), axios.get('/api/families/summary', { headers })]);
+        setData(Array.isArray(fRes.data) ? fRes.data : (fRes.data.families || []));
+        setSummary(sRes.data || null);
+      } else {
+        const [cRes, sRes] = await Promise.all([axios.get('/api/census?limit=9999', { headers }), axios.get('/api/census/summary', { headers })]);
+        setData(Array.isArray(cRes.data) ? cRes.data : (cRes.data.data || []));
+        setSummary(sRes.data || null);
+      }
+    } catch (err) { setData([]); setSummary(null); }
+    setLoading(false);
+  }, [reportType, token, locked, refreshKey]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const doRefresh = () => { setRefreshKey(k => k + 1); toast.success('جاري تحديث البيانات...'); };
 
   const safeData = Array.isArray(data) ? data : [];
 
@@ -73,13 +76,14 @@ function Reports() {
   const professions = [...new Set(safeData.map(d => d.profession).filter(Boolean))];
   const teams = [...new Set(safeData.map(d => d.teamNumber).filter(Boolean))].sort((a, b) => a - b);
 
-  // Census computed stats
   const censusStats = (() => {
     if (reportType !== 'census') return null;
     const d = filtered;
     let totalMale = 0, totalFemale = 0, totalPopulation = 0, totalIncome = 0, incomeCount = 0;
-    let totalMarried = 0, totalDeceased = 0, totalMembers = 0;
-    const villages = {}, financial = {}, housing = {}, education = {}, health = {}, income = {}, genderByVillage = {};
+    let totalMarried = 0, totalDeceased = 0, totalMembers = 0, totalMigrants = 0;
+    const villages = {}, financial = {}, housing = {}, education = {}, health = {};
+    const income = {}, genderByVillage = {}, housingCond = {}, mainIncome = {};
+    const relationships = {}, maritalStatus = {};
 
     d.forEach(c => {
       totalMale += c.maleCount || 0;
@@ -87,23 +91,24 @@ function Reports() {
       totalPopulation += (c.maleCount || 0) + (c.femaleCount || 0);
       totalMarried += c.marriedCount || 0;
       totalDeceased += c.deceasedCount || 0;
+      totalMigrants += c.migrantCount || 0;
       if (c.averageIncome > 0) { totalIncome += c.averageIncome; incomeCount++; }
       const v = c.village || 'غير محدد';
       villages[v] = (villages[v] || 0) + 1;
       if (!genderByVillage[v]) genderByVillage[v] = { male: 0, female: 0 };
       genderByVillage[v].male += c.maleCount || 0;
       genderByVillage[v].female += c.femaleCount || 0;
-      const f = c.financialStatus || 'غير محدد';
-      financial[f] = (financial[f] || 0) + 1;
-      const h = c.housingType || 'غير محدد';
-      housing[h] = (housing[h] || 0) + 1;
+      financial[c.financialStatus || 'غير محدد'] = (financial[c.financialStatus || 'غير محدد'] || 0) + 1;
+      housing[c.housingType || 'غير محدد'] = (housing[c.housingType || 'غير محدد'] || 0) + 1;
+      housingCond[c.housingCondition || 'غير محدد'] = (housingCond[c.housingCondition || 'غير محدد'] || 0) + 1;
+      mainIncome[c.mainIncomeSource || 'غير محدد'] = (mainIncome[c.mainIncomeSource || 'غير محدد'] || 0) + 1;
       if (c.members && c.members.length > 0) {
         totalMembers += c.members.length;
         c.members.forEach(m => {
-          const ed = m.educationLevel || 'غير محدد';
-          education[ed] = (education[ed] || 0) + 1;
-          const hs = m.healthStatus || 'غير محدد';
-          health[hs] = (health[hs] || 0) + 1;
+          education[m.educationLevel || 'غير محدد'] = (education[m.educationLevel || 'غير محدد'] || 0) + 1;
+          health[m.healthStatus || 'غير محدد'] = (health[m.healthStatus || 'غير محدد'] || 0) + 1;
+          relationships[m.relationship || 'غير محدد'] = (relationships[m.relationship || 'غير محدد'] || 0) + 1;
+          maritalStatus[m.maritalStatus || 'غير محدد'] = (maritalStatus[m.maritalStatus || 'غير محدد'] || 0) + 1;
         });
       }
       const inc = c.averageIncome || 0;
@@ -121,8 +126,9 @@ function Reports() {
     return {
       totalForms: d.length, totalPopulation, totalMale, totalFemale,
       avgIncome: incomeCount > 0 ? Math.round(totalIncome / incomeCount) : 0,
-      totalMarried, totalDeceased, totalMembers,
-      villages, financial, housing, education, health, income, genderByVillage,
+      totalIncome, incomeCount, totalMarried, totalDeceased, totalMembers, totalMigrants,
+      villages, financial, housing, housingCond, mainIncome, education, health,
+      income, genderByVillage, relationships, maritalStatus,
       avgFamilySize: d.length > 0 ? Math.round(totalPopulation / d.length) : 0,
     };
   })();
@@ -139,8 +145,12 @@ function Reports() {
         buildChart(censusStats.villages, 'التوزيع حسب القرية'),
         buildChart(censusStats.financial, 'الحالة المادية'),
         buildChart(censusStats.housing, 'نوع السكن'),
+        buildChart(censusStats.housingCond, 'حالة السكن'),
+        buildChart(censusStats.mainIncome, 'مصدر الدخل الرئيسي'),
         buildChart(censusStats.education, 'المستوى التعليمي'),
         buildChart(censusStats.health, 'الحالة الصحية'),
+        buildChart(censusStats.relationships, 'صلى القرابة'),
+        buildChart(censusStats.maritalStatus, 'الحالة الاجتماعية'),
         buildChart(censusStats.income, 'مستويات الدخل'),
       ];
     }
@@ -255,7 +265,7 @@ function Reports() {
     let csv = '\uFEFF';
     if (reportType === 'workers') { csv += 'الاسم,العمر,المنطقة,المهنة,الفرقة\n'; filtered.forEach(w2 => { csv += `${w2.name||''},${w2.age||''},${w2.region||''},${w2.profession||''},${w2.teamNumber||''}\n`; }); }
     else if (reportType === 'families') { csv += 'الاسم,الفرقة,عدد الأفراد,المبلغ\n'; filtered.forEach(f => { csv += `${f.name||''},${f.teamNumber||''},${f.memberCount||0},${f.totalAmount||0}\n`; }); }
-    else { csv += 'رب الأسرة,الرقم,القرية,الذكور,الإناث,الدخل,الحالة,نوع السكن,البحث\n'; filtered.forEach(c => { csv += `${c.headName||''},${c.familyNumber||''},${c.village||''},${c.maleCount||0},${c.femaleCount||0},${c.averageIncome||0},${c.financialStatus||''},${c.housingType||''},${c.researcherName||''}\n`; }); }
+    else { csv += 'رب الأسرة,الرقم,القرية,الذكور,الإناث,الدخل,الحالة,نوع السكن,حالة السكن,مصدر الدخل,مدخل البيانات\n'; filtered.forEach(c => { csv += `${c.headName||''},${c.familyNumber||''},${c.village||''},${c.maleCount||0},${c.femaleCount||0},${c.averageIncome||0},${c.financialStatus||''},${c.housingType||''},${c.housingCondition||''},${c.mainIncomeSource||''},${c.enteredByName||''}\n`; }); }
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `report_${reportType}_${Date.now()}.csv`; a.click();
   };
@@ -271,14 +281,9 @@ function Reports() {
         <span className="section-badge">التقارير</span>
         <h2 className="section-title">تقارير <span className="gradient-text">مميزة</span></h2>
       </div>
-      <div className="locked-content">
-        <div className="locked-icon">🔒</div>
-        <h3>ليس لديك صلاحيات لعرض التقارير</h3>
-        <p>تواصل مع المدير للحصول على الصلاحيات المناسبة</p>
-      </div>
+      <div className="locked-content"><div className="locked-icon">🔒</div><h3>ليس لديك صلاحيات لعرض التقارير</h3><p>تواصل مع المدير للحصول على الصلاحيات المناسبة</p></div>
     </div>
   );
-
   if (!reportType) return null;
 
   return (
@@ -298,29 +303,24 @@ function Reports() {
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
         <input type="text" placeholder="بحث بالاسم، القرية، رقم الأسرة..." value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: '150px' }} />
         {reportType === 'workers' && <>
-          <select value={filters.region} onChange={e => setFilters({ ...filters, region: e.target.value })} style={inputStyle}>
-            <option value="">جميع المناطق</option>{regions.map(r => <option key={r} value={r}>{r}</option>)}
-          </select>
-          <select value={filters.profession} onChange={e => setFilters({ ...filters, profession: e.target.value })} style={inputStyle}>
-            <option value="">جميع المهن</option>{professions.map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
-          <select value={filters.team} onChange={e => setFilters({ ...filters, team: e.target.value })} style={inputStyle}>
-            <option value="">جميع الفرق</option>{teams.map(t => <option key={t} value={t}>فرقة {t}</option>)}
-          </select>
+          <select value={filters.region} onChange={e => setFilters({ ...filters, region: e.target.value })} style={inputStyle}><option value="">جميع المناطق</option>{regions.map(r => <option key={r} value={r}>{r}</option>)}</select>
+          <select value={filters.profession} onChange={e => setFilters({ ...filters, profession: e.target.value })} style={inputStyle}><option value="">جميع المهن</option>{professions.map(p => <option key={p} value={p}>{p}</option>)}</select>
+          <select value={filters.team} onChange={e => setFilters({ ...filters, team: e.target.value })} style={inputStyle}><option value="">جميع الفرق</option>{teams.map(t => <option key={t} value={t}>فرقة {t}</option>)}</select>
         </>}
       </div>
 
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', alignItems: 'center' }}>
         <button className="btn-export" onClick={exportPDF}>📄 تصدير PDF</button>
         <button className="btn-export" onClick={exportExcel}>📊 تصدير Excel</button>
-        <span style={{ marginRight: 'auto', color: 'var(--gray)', fontSize: '0.85rem' }}>{filtered.length} سجل</span>
+        <button className="btn-primary" onClick={doRefresh} style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>🔄 تحديث البيانات</button>
+        <span style={{ marginRight: 'auto', color: 'var(--gray)', fontSize: '0.85rem' }}>{filtered.length} سجل — آخر تحديث: {new Date().toLocaleTimeString('ar-SA')}</span>
       </div>
 
       {loading ? <div className="spinner"></div> : (
         <div id="report-print-area">
           {reportType === 'census' && censusStats && (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.8rem', marginBottom: '1.5rem' }}>
                 {statCard('👥', 'إجمالي السكان', censusStats.totalPopulation, '#6366f1', `${censusStats.totalForms} أسرة`)}
                 {statCard('♂️', 'الذكور', censusStats.totalMale, '#06b6d4', `${Math.round((censusStats.totalMale / Math.max(censusStats.totalPopulation, 1)) * 100)}%`)}
                 {statCard('♀️', 'الإناث', censusStats.totalFemale, '#ec4899', `${Math.round((censusStats.totalFemale / Math.max(censusStats.totalPopulation, 1)) * 100)}%`)}
@@ -330,12 +330,9 @@ function Reports() {
                 {statCard('🕊️', 'المتوفون', censusStats.totalDeceased, '#ef4444')}
                 {statCard('📊', 'إجمالي الأفراد', censusStats.totalMembers, '#14b8a6', 'في جميع الأسر')}
               </div>
-
               {dualBarChart('♂️♀️ توزيع الجنس حسب القرية',
-                Object.fromEntries(Object.entries(censusStats.genderByVillage).map(([k, v]) => [k, v.male])),
-                'ذكور', '#06b6d4',
-                Object.fromEntries(Object.entries(censusStats.genderByVillage).map(([k, v]) => [k, v.female])),
-                'إناث', '#ec4899'
+                Object.fromEntries(Object.entries(censusStats.genderByVillage).map(([k, v]) => [k, v.male])), 'ذكور', '#06b6d4',
+                Object.fromEntries(Object.entries(censusStats.genderByVillage).map(([k, v]) => [k, v.female])), 'إناث', '#ec4899'
               )}
             </>
           )}
