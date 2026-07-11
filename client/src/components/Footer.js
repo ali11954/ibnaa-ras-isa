@@ -43,7 +43,7 @@ const Footer = () => {
         </div>
         <div className="footer-bottom">
           <span>&copy; {new Date().getFullYear()} ابناء راس عيسى. جميع الحقوق محفوظة.</span>
-          <span style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--gray)' }}>تصميم وتطوير: <a href="https://alghithapp.netlify.app/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-light)', fontWeight: '600' }}>المصمم غيث</a></span>
+          <span style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--gray)' }}>تصميم وتطوير: <a href="https://alghithapp.netlify.app/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-light)', fontWeight: '600' }}>المصمم غيث لتصميم التطبيقات والأنظمة</a></span>
         </div>
       </footer>
       <button className={`scroll-top ${showScroll ? 'visible' : ''}`} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}><FiArrowUp /></button>
