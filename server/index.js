@@ -207,7 +207,8 @@ async function seedExcelToMongo() {
       const r = rawH[i];
       const teamName = r[1];
       if (!teamName || typeof teamName !== "string") continue;
-      const teamNum = parseInt(r[0]) || 0;
+      const nameMatch = teamName.match(/(\d+)/);
+      const teamNum = nameMatch ? parseInt(nameMatch[1]) : (parseInt(r[0]) || 0);
       const total = parseInt(r[7]) || 0;
 
       const beneficiaries = [];
@@ -454,8 +455,21 @@ app.get("/api/families", authMiddleware, subscriberMiddleware, async (req, res) 
     ];
     const total = await Family.countDocuments(filter);
     const data = await Family.find(filter).skip((page - 1) * limit).limit(parseInt(limit));
+
+    // Calculate real memberCount from Worker collection for each family
+    const teamCounts = await Worker.aggregate([
+      { $group: { _id: "$teamNumber", count: { $sum: 1 } } }
+    ]);
+    const countMap = {};
+    teamCounts.forEach(t => { countMap[t._id] = t.count; });
+
     res.json({
-      data: data.map(f => ({ ...f.toObject(), id: f._id })),
+      data: data.map(f => {
+        const obj = f.toObject();
+        obj.id = f._id;
+        obj.memberCount = countMap[f.teamNumber] || 0;
+        return obj;
+      }),
       pagination: { total, page: parseInt(page), limit: parseInt(limit), totalPages: Math.ceil(total / limit) },
     });
   } catch (e) { res.status(500).json({ error: e.message }); }

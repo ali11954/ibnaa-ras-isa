@@ -70,7 +70,9 @@ async function seed() {
     const r = rawH[i];
     const teamName = r[1];
     if (!teamName || typeof teamName !== "string") continue;
-    const teamNum = parseInt(r[0]) || 0;
+    // Extract real team number from name like "الفرقة 3" → 3
+    const nameMatch = teamName.match(/(\d+)/);
+    const teamNum = nameMatch ? parseInt(nameMatch[1]) : (parseInt(r[0]) || 0);
     const total = parseInt(r[7]) || 0;
 
     // Read beneficiaries from columns 8, 10, 12
@@ -124,7 +126,8 @@ async function seed() {
     const r = rawF[i];
     const teamName = r[1];
     if (!teamName || typeof teamName !== "string") continue;
-    const teamNum = parseInt(r[0]) || 0;
+    const nameMatch2 = teamName.match(/(\d+)/);
+    const teamNum = nameMatch2 ? parseInt(nameMatch2[1]) : (parseInt(r[0]) || 0);
     const existing = familyMap[teamNum];
 
     // Parse multiple names separated by +
