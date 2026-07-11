@@ -653,7 +653,7 @@ function Reports() {
                   if (c.headName) {
                     allMembers.push({
                       name: c.headName, relationship: 'رب الأسرة', gender: 'ذكر',
-                      age: c.birthDate ? Math.floor((Date.now() - new Date(c.birthDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : 0,
+                      age: c.birthDate ? new Date().getFullYear() - new Date(c.birthDate).getFullYear() : 0,
                       birthDate: c.birthDate || '', nationalId: c.nationalId || '', idType: c.idType || '',
                       parentName: '', maritalStatus: 'متزوج', educationLevel: '', educationStatus: '',
                       work: c.mainIncomeSource || '', memberIncome: c.averageIncome || 0,
