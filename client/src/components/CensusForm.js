@@ -14,7 +14,7 @@ const emptyFamily = {
   averageIncome: 0, financialStatus: '', notes: '',
 };
 
-const emptyMember = { seq: 1, name: '', gender: '', age: 0, birthDate: '', nationalId: '', idType: '', relationship: '', parentName: '', maritalStatus: '', familyStatus: 'يعيش مع العائلة', newFamilyNumber: '', spouseName: '', educationLevel: '', educationStatus: '', work: '', memberIncome: 0, healthStatus: '', chronicDisease: '', injury: '', disability: '', memberNotes: '' };
+const emptyMember = { seq: 1, name: '', gender: '', age: 0, birthDate: '', nationalId: '', idType: '', relationship: '', parentName: '', maritalStatus: '', familyStatus: 'يعيش مع العائلة', newFamilyNumber: '', spouseName: '', spouseFrom: 'خارج راس عيسى', spouseVillage: '', spouseSearch: '', spouseFamilyNumber: '', educationLevel: '', educationStatus: '', work: '', memberIncome: 0, healthStatus: '', chronicDisease: '', injury: '', disability: '', memberNotes: '' };
 const emptyMigration = { migName: '', departureDate: '', migDestination: '', migReason: '', insideYemen: '', country: '', migNotes: '' };
 const emptyDisease = { disName: '', chronicDisease: '', injuryType: '', disabilityType: '', injuryDate: '', needsTreatment: '', disNotes: '' };
 
@@ -39,6 +39,7 @@ const LIST_KEYS = {
   educationStatus: 'الحالة التعليمية',
   otherIncomeSources: 'مصادر دخل أخرى',
   idType: 'نوع الهوية',
+  spouseFrom: 'مصدر الزواج',
 };
 
 const DROPDOWN_FIELDS = ['governorate', 'directorate', 'isolation', 'village', 'neighborhood', 'mainIncomeSource', 'otherIncomeSources', 'financialStatus', 'housingType', 'housingCondition'];
@@ -66,6 +67,7 @@ export default function CensusForm({ onSave, onCancel, editData }) {
   const [saving, setSaving] = useState(false);
   const [lists, setLists] = useState({});
   const [newOption, setNewOption] = useState({});
+  const [censusFamilies, setCensusFamilies] = useState([]);
 
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -74,6 +76,10 @@ export default function CensusForm({ onSave, onCancel, editData }) {
       const map = {};
       res.data.forEach(l => { map[l.key] = l.options || []; });
       setLists(map);
+    }).catch(() => {});
+    axios.get('/api/census?limit=9999', { headers }).then(res => {
+      const data = Array.isArray(res.data) ? res.data : (res.data.data || []);
+      setCensusFamilies(data);
     }).catch(() => {});
   }, [token]);
 
@@ -346,8 +352,19 @@ export default function CensusForm({ onSave, onCancel, editData }) {
                         <option value="">اختر</option><option value="ذكر">ذكر</option><option value="أنثى">أنثى</option>
                       </select>
                     </div>
-                    <div className="form-group"><label style={labelStyle}>العمر *</label><input type="number" style={inputStyle} value={m.age} onChange={e => updateMember(i, 'age', parseInt(e.target.value) || 0)} /></div>
-                    <div className="form-group"><label style={labelStyle}>تاريخ الميلاد</label><input type="date" style={inputStyle} value={m.birthDate} onChange={e => updateMember(i, 'birthDate', e.target.value)} /></div>
+                    <div className="form-group"><label style={labelStyle}>العمر *</label>
+                      <input type="number" style={readOnlyStyle} value={m.birthDate ? new Date().getFullYear() - new Date(m.birthDate).getFullYear() : (m.age || 0)} readOnly />
+                    </div>
+                    <div className="form-group"><label style={labelStyle}>تاريخ الميلاد</label>
+                      <input type="date" style={inputStyle} value={m.birthDate || ''} onChange={e => {
+                        const bd = e.target.value;
+                        const age = bd ? new Date().getFullYear() - new Date(bd).getFullYear() : 0;
+                        const updated = { ...m, birthDate: bd, age };
+                        const newMembers = [...members];
+                        newMembers[i] = updated;
+                        setMembers(newMembers);
+                      }} />
+                    </div>
                     {renderDropdown('نوع الهوية', 'idType', m.idType, v => updateMember(i, 'idType', v), true)}
                     <div className="form-group"><label style={labelStyle}>رقم الهوية</label><input style={inputStyle} value={m.nationalId} onChange={e => updateMember(i, 'nationalId', e.target.value)} /></div>
                     <div className="form-group">
@@ -370,9 +387,71 @@ export default function CensusForm({ onSave, onCancel, editData }) {
                     {(m.maritalStatus === 'متزوج' || m.maritalStatus === 'مزوج') && isChild && (
                       <>
                         <div className="form-group">
-                          <label style={labelStyle}>اسم الزوج/الزوجة *</label>
-                          <input style={inputStyle} value={m.spouseName || ''} onChange={e => updateMember(i, 'spouseName', e.target.value)} placeholder="الاسم الكامل للزوج/الزوجة" />
+                          <label style={labelStyle}>الزوج/ة من:* </label>
+                          <select style={inputStyle} value={m.spouseFrom || 'خارج راس عيسى'} onChange={e => {
+                            const updated = { ...m, spouseFrom: e.target.value, spouseName: '', spouseFamilyNumber: '' };
+                            const newMembers = [...members];
+                            newMembers[i] = updated;
+                            setMembers(newMembers);
+                          }}>
+                            <option value="خارج راس عيسى">من خارج قرى راس عيسى</option>
+                            <option value="من راس عيسى">من قرى راس عيسى</option>
+                          </select>
                         </div>
+                        {m.spouseFrom === 'من راس عيسى' ? (
+                          <>
+                            <div className="form-group">
+                              <label style={labelStyle}>اختر القرية *</label>
+                              <select style={inputStyle} value={m.spouseVillage || ''} onChange={e => {
+                                const updated = { ...m, spouseVillage: e.target.value, spouseName: '', spouseFamilyNumber: '' };
+                                const newMembers = [...members];
+                                newMembers[i] = updated;
+                                setMembers(newMembers);
+                              }}>
+                                <option value="">اختر القرية</option>
+                                {[...new Set(censusFamilies.map(c => c.village).filter(Boolean))].sort().map(v => (
+                                  <option key={v} value={v}>{v}</option>
+                                ))}
+                              </select>
+                            </div>
+                            {m.spouseVillage && (
+                              <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                                <label style={labelStyle}>اختر الزوج/ة *</label>
+                                <input type="text" style={{ ...inputStyle, marginBottom: '0.3rem' }} placeholder="ابحث بالاسم..." value={m.spouseSearch || ''} onChange={e => {
+                                  const updated = { ...m, spouseSearch: e.target.value };
+                                  const newMembers = [...members];
+                                  newMembers[i] = updated;
+                                  setMembers(newMembers);
+                                }} />
+                                <select style={inputStyle} value={m.spouseName || ''} onChange={e => {
+                                  const selected = censusFamilies.find(c => c.headName === e.target.value && c.village === m.spouseVillage);
+                                  const updated = { ...m, spouseName: e.target.value, spouseFamilyNumber: selected?.familyNumber || '' };
+                                  const newMembers = [...members];
+                                  newMembers[i] = updated;
+                                  setMembers(newMembers);
+                                }}>
+                                  <option value="">اختر الفرد</option>
+                                  {censusFamilies.filter(c => c.village === m.spouseVillage && c.headName !== family.headName).filter(c => {
+                                    if (!m.spouseSearch) return true;
+                                    return c.headName.includes(m.spouseSearch);
+                                  }).map(c => (
+                                    <option key={c._id} value={c.headName}>{c.headName} — {c.familyNumber}</option>
+                                  ))}
+                                </select>
+                                {m.spouseName && (
+                                  <div style={{ fontSize: '0.7rem', color: '#10b981', marginTop: '0.2rem' }}>
+                                    ✓ مرتبط بـ: {m.spouseName} ({m.spouseFamilyNumber})
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="form-group">
+                            <label style={labelStyle}>اسم الزوج/الزوجة *</label>
+                            <input style={inputStyle} value={m.spouseName || ''} onChange={e => updateMember(i, 'spouseName', e.target.value)} placeholder="الاسم الكامل للزوج/الزوجة" />
+                          </div>
+                        )}
                         <div className="form-group">
                           <label style={labelStyle}>حالة العائلة *</label>
                           <select style={inputStyle} value={m.familyStatus || 'يعيش مع العائلة'} onChange={e => updateMember(i, 'familyStatus', e.target.value)}>
