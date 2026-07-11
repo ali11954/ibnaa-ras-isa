@@ -201,31 +201,50 @@ async function seedExcelToMongo() {
     const wb = XLSX.readFile(wbFamiliesPath);
     const familyMap = {};
 
-    // Sheet 1: الكشف الحديث - has Name(Amount) format
+    // Sheet 1: الكشف الحديث - beneficiaries in columns 8, 10, 12 (Name(Amount) format)
     const rawH = XLSX.utils.sheet_to_json(wb.Sheets["الكشف الحديث"], { header: 1, defval: "" });
     for (let i = 2; i < rawH.length; i++) {
       const r = rawH[i];
       const teamName = r[1];
       if (!teamName || typeof teamName !== "string") continue;
       const teamNum = parseInt(r[0]) || 0;
-      const benefRaw = String(r[8] || "");
+      const total = parseInt(r[7]) || 0;
+
       const beneficiaries = [];
-      const matches = benefRaw.match(/([^(]+)\((\d+)\)/g);
-      if (matches) {
-        matches.forEach(m => {
-          const parts = m.match(/([^(]+)\((\d+)\)/);
-          if (parts) {
-            beneficiaries.push({ name: parts[1].trim(), amount: parseInt(parts[2]) || 0 });
-          }
+      const benefCols = [8, 10, 12];
+      let knownSum = 0;
+
+      benefCols.forEach(col => {
+        const raw = String(r[col] || "").trim();
+        if (!raw) return;
+        const match = raw.match(/(.+)\((\d+)\)/);
+        if (match) {
+          const name = match[1].trim();
+          const amount = parseInt(match[2]) || 0;
+          beneficiaries.push({ name, amount });
+          knownSum += amount;
+        } else {
+          beneficiaries.push({ name: raw, amount: 0 });
+        }
+      });
+
+      const missingCount = beneficiaries.filter(b => b.amount === 0).length;
+      if (missingCount > 0 && total > 0) {
+        const remaining = total - knownSum;
+        const perMissing = Math.floor(remaining / missingCount);
+        beneficiaries.forEach(b => {
+          if (b.amount === 0) b.amount = perMissing;
         });
       }
+
+      const reasonCol = beneficiaries.length > 1 ? 14 : 13;
       familyMap[teamNum] = {
         teamNumber: teamNum, teamName,
         leader: String(r[3] || ""), status: String(r[4] || ""),
         village: String(r[5] || ""),
         individualAmount: parseInt(r[6]) || 0,
-        totalAmount: parseInt(r[7]) || 0,
-        reason: String(r[13] || ""),
+        totalAmount: total,
+        reason: String(r[reasonCol] || ""),
         beneficiaries,
       };
     }
