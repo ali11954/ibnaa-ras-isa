@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
+import WorkersCharts from './WorkersCharts';
 
 const DEFAULT_COLUMNS = {
   name: true, nationalId: true, age: true, ageGroup: true, region: true,
@@ -31,6 +32,7 @@ const WorkersTable = () => {
   const [showLog, setShowLog] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [showCols, setShowCols] = useState(false);
+  const [showCharts, setShowCharts] = useState(false);
   const [columns, setColumns] = useState(() => {
     try { return JSON.parse(localStorage.getItem('workerCols')) || { ...DEFAULT_COLUMNS }; }
     catch { return { ...DEFAULT_COLUMNS }; }
@@ -143,14 +145,40 @@ const WorkersTable = () => {
       if (k === 'teamNumber') return `<td>الفرقة ${w[k]}</td>`;
       return `<td>${w[k] || ''}</td>`;
     }).join('');
+
+    const countByExport = (arr, key) => {
+      const map = {};
+      arr.forEach(item => { const v = item[key] || 'غير محدد'; map[v] = (map[v]||0)+1; });
+      return Object.entries(map).sort((a,b)=>b[1]-a[1]);
+    };
+
+    const ageRows = countByExport(workers, 'ageGroup').map(([n,c],i) => `<tr><td>${i+1}</td><td>${n}</td><td>${c}</td><td>${workers.length?Math.round(c/workers.length*100):0}%</td></tr>`).join('');
+    const regionRows = countByExport(workers, 'region').map(([n,c],i) => `<tr><td>${i+1}</td><td>${n}</td><td>${c}</td><td>${workers.length?Math.round(c/workers.length*100):0}%</td></tr>`).join('');
+    const profRows = countByExport(workers, 'profession').map(([n,c],i) => `<tr><td>${i+1}</td><td>${n}</td><td>${c}</td><td>${workers.length?Math.round(c/workers.length*100):0}%</td></tr>`).join('');
+    const teamRows = countByExport(workers, 'teamNumber').map(([n,c],i) => `<tr><td>${i+1}</td><td>الفرقة ${n}</td><td>${c}</td><td>${workers.length?Math.round(c/workers.length*100):0}%</td></tr>`).join('');
+
+    const chartsHtml = `
+      <div style="page-break-before:always;margin-top:20px">
+        <h2 style="text-align:center">الرسوم البيانية</h2>
+        <h3>الفئات العمرية</h3>
+        <table><tr><th>#</th><th>الفئة</th><th>العدد</th><th>النسبة</th></tr>${ageRows}</table>
+        <h3 style="margin-top:15px">المناطق</h3>
+        <table><tr><th>#</th><th>المنطقة</th><th>العدد</th><th>النسبة</th></tr>${regionRows}</table>
+        <h3 style="margin-top:15px">المهن</h3>
+        <table><tr><th>#</th><th>المهنة</th><th>العدد</th><th>النسبة</th></tr>${profRows}</table>
+        <h3 style="margin-top:15px">الفرق</h3>
+        <table><tr><th>#</th><th>الفرقة</th><th>العدد</th><th>النسبة</th></tr>${teamRows}</table>
+      </div>`;
+
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`<html><head><title>كشف العمال</title>
-      <style>body{font-family:Arial,sans-serif;direction:rtl;padding:20px}table{width:100%;border-collapse:collapse;margin-top:10px}th,td{border:1px solid #333;padding:6px 8px;text-align:right;font-size:11px}th{background:#eee;font-weight:bold}h2{text-align:center}@media print{.no-print{display:none}}</style></head><body>
+      <style>body{font-family:Arial,sans-serif;direction:rtl;padding:20px}table{width:100%;border-collapse:collapse;margin-top:10px}th,td{border:1px solid #333;padding:6px 8px;text-align:right;font-size:11px}th{background:#eee;font-weight:bold}h2{text-align:center}h3{margin-top:15px;font-size:13px}@media print{.no-print{display:none}}</style></head><body>
       <h2>ابناء راس عيسى - كشف العمال</h2>
       <p>إجمالي العمال: ${pagination.total || 0} | الصفحة ${page} من ${pagination.totalPages || 1}</p>
       <table><tr><th>#</th><th>${colHeaders}</th><th>البصمة</th></tr>
       ${workers.map((w,i)=>`<tr><td>${(page-1)*26+i+1}</td>${colCells(w)}<td style="width:80px"></td></tr>`).join('')}
       </table>
+      ${chartsHtml}
       <div style="background:#f0f8ff;border:1px solid #4a90d9;padding:10px;margin-top:15px;font-size:12px;border-radius:4px">
         <strong>إقرار:</strong> أنا الموقع أدناه أقر بأن جميع البيانات المذكورة أعلاه صحيحة وأتحمل المسؤولية الكاملة تجاهها.
       </div>
@@ -228,6 +256,7 @@ const WorkersTable = () => {
           <button className="btn-export" onClick={handleExportPDF}>📄 PDF</button>
           <button className="btn-export" onClick={handleExportExcel}>📊 Excel</button>
           <button className="btn-export" onClick={() => setShowCols(!showCols)}>👁️ الأعمدة</button>
+          <button className="btn-export" onClick={() => setShowCharts(!showCharts)}>{showCharts ? '📊 إخفاء الرسوم' : '📊 الرسوم البيانية'}</button>
           {isAdmin && <button className="btn-export" onClick={() => { setShowLog(!showLog); fetchTransferLog(); }}>📋 سجل النقل</button>}
         </div>
       </div>
@@ -244,6 +273,10 @@ const WorkersTable = () => {
             ))}
           </div>
         </div>
+      )}
+
+      {showCharts && !loading && (
+        <WorkersCharts workers={workers} />
       )}
 
       {showLog && (
