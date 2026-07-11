@@ -36,7 +36,7 @@ const userSchema = new mongoose.Schema({
   approved: { type: Boolean, default: false },
   verified: { type: Boolean, default: false },
   permissions: { type: [String], default: [] },
-}, { timestamps: true });
+}, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } });
 
 const feedbackSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -56,7 +56,7 @@ const subscriberSchema = new mongoose.Schema({
   reason: String,
   approved: { type: Boolean, default: false },
   permissions: { type: [String], default: [] },
-}, { timestamps: true });
+}, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } });
 
 const workerSchema = new mongoose.Schema({
   nationalId: String,
@@ -388,64 +388,84 @@ async function seedExcelToMongo() {
 
 async function seedCensusData() {
   const censusCount = await Census.countDocuments();
-  if (censusCount > 0) {
+  if (censusCount > 1) {
     console.log(`MongoDB already has ${censusCount} census records — skipping seed`);
     return;
   }
+  if (censusCount === 1) {
+    await Census.deleteMany({});
+    console.log('Cleared old single census record for re-seed');
+  }
   try {
-    await Census.create({
-      formNumber: 'EST-001',
-      familyNumber: 'FAM-001',
-      visitDate: '2026-07-01',
-      researcherName: 'محمد علي',
-      governorate: 'حجة',
-      directorate: 'الصليف',
-      isolation: 'راس عيسى',
-      village: 'راس عيسى',
-      neighborhood: 'حي السلام',
-      street: 'شارع المعلم',
-      houseNumber: '15',
-      headName: 'احمد محمد علي',
-      phone: '771234567',
-      currentFamilySize: 8,
-      previousFamilySize: 10,
-      maleCount: 5,
-      femaleCount: 3,
-      marriedCount: 2,
-      deceasedCount: 1,
-      migrantCount: 1,
-      migrationDestination: 'الرياض',
-      residenceDate: '2005',
-      previousResidence: 'الصليف',
-      previousGovernorate: 'حجة',
-      previousDirectorate: 'الصليف',
-      housingType: 'شقة',
-      housingCondition: 'متوسط',
-      mainIncomeSource: 'العمل اليومي',
-      otherIncomeSources: 'المساعدات',
-      averageIncome: 50000,
-      financialStatus: 'ضعيف',
-      notes: 'أسرة محتاجة - الأب يعمل في النشاط اليومي',
-      members: [
-        { seq: 1, name: 'احمد محمد علي', gender: 'ذكر', age: 52, relationship: 'رب الأسرة', parentName: 'محمد علي', maritalStatus: 'متزوج', educationLevel: 'ابتدائي', work: 'عامل يومي', memberIncome: 30000, healthStatus: 'سليم', chronicDisease: 'ضغط الدم' },
-        { seq: 2, name: 'فاطمة حسين', gender: 'أنثى', age: 48, relationship: 'الزوجة', parentName: 'حسين احمد', maritalStatus: 'متزوج', educationLevel: 'أمي', work: 'عمل منزلي', healthStatus: 'سليم' },
-        { seq: 3, name: 'علي احمد', gender: 'ذكر', age: 25, relationship: 'ابن', parentName: 'احمد محمد علي', maritalStatus: 'متزوج', educationLevel: 'متوسط', work: 'عامل', memberIncome: 20000, healthStatus: 'سليم' },
-        { seq: 4, name: 'حسين احمد', gender: 'ذكر', age: 22, relationship: 'ابن', parentName: 'احمد محمد علي', maritalStatus: 'أعزب', educationLevel: 'ثانوي', work: 'طالب', healthStatus: 'سليم' },
-        { seq: 5, name: 'زينب احمد', gender: 'أنثى', age: 20, relationship: 'ابنة', parentName: 'احمد محمد علي', maritalStatus: 'أعزب', educationLevel: 'ثانوي', healthStatus: 'سليم' },
-        { seq: 6, name: 'مريم احمد', gender: 'أنثى', age: 16, relationship: 'ابنة', parentName: 'احمد محمد علي', maritalStatus: 'أعزب', educationLevel: 'متوسط', healthStatus: 'سليم' },
-        { seq: 7, name: 'يوسف احمد', gender: 'ذكر', age: 12, relationship: 'ابن', parentName: 'احمد محمد علي', maritalStatus: 'أعزب', educationLevel: 'ابتدائي', healthStatus: 'مريض', chronicDisease: 'ربو' },
-        { seq: 8, name: 'خديجة احمد', gender: 'أنثى', age: 8, relationship: 'ابنة', parentName: 'احمد محمد علي', maritalStatus: 'أعزب', educationLevel: 'ابتدائي', healthStatus: 'سليم' },
-      ],
-      housing: { type: 'شقة', ownership: 'إيجار', moveDate: '2005', rooms: 3, electricity: 'نعم', water: 'نعم', sewage: 'نعم', internet: 'لا', gas: 'لا', housingNotes: 'شقة مستأجرة - 3 غرف وصالة ومطبخ' },
-      migration: [
-        { migName: 'عبدالرحمن احمد', departureDate: '2020', migDestination: 'الرياض', migReason: 'العمل', insideYemen: 'خارج اليمن', country: 'السعودية' },
-      ],
-      diseases: [
-        { disName: 'احمد محمد علي', chronicDisease: 'ضغط الدم', needsTreatment: 'نعم' },
-        { disName: 'يوسف احمد', chronicDisease: 'ربو', needsTreatment: 'نعم' },
-      ],
-    });
-    console.log('Seeded 1 sample census family');
+    const samples = [
+      {
+        formNumber: 'EST-001', familyNumber: 'FAM-001', visitDate: '2026-07-01', researcherName: 'محمد علي',
+        governorate: 'حجة', directorate: 'الصليف', isolation: 'راس عيسى', village: 'راس عيسى', neighborhood: 'حي السلام', street: 'شارع المعلم', houseNumber: '15',
+        headName: 'احمد محمد علي', phone: '771234567', currentFamilySize: 8, previousFamilySize: 10, maleCount: 5, femaleCount: 3, marriedCount: 2, deceasedCount: 1, migrantCount: 1,
+        migrationDestination: 'الرياض', residenceDate: '2005', previousResidence: 'الصليف', previousGovernorate: 'حجة', previousDirectorate: 'الصليف',
+        housingType: 'شقة', housingCondition: 'متوسط', mainIncomeSource: 'العمل اليومي', otherIncomeSources: 'المساعدات', averageIncome: 50000, financialStatus: 'ضعيف',
+        notes: 'أسرة محتاجة - الأب يعمل في النشاط اليومي',
+        members: [
+          { seq: 1, name: 'احمد محمد علي', gender: 'ذكر', age: 52, relationship: 'رب الأسرة', parentName: 'محمد علي', maritalStatus: 'متزوج', educationLevel: 'ابتدائي', work: 'عامل يومي', memberIncome: 30000, healthStatus: 'مريض', chronicDisease: 'ضغط الدم' },
+          { seq: 2, name: 'فاطمة حسين', gender: 'أنثى', age: 48, relationship: 'الزوجة', parentName: 'حسين احمد', maritalStatus: 'متزوج', educationLevel: 'أمي', work: 'عمل منزلي', healthStatus: 'سليم' },
+          { seq: 3, name: 'علي احمد', gender: 'ذكر', age: 25, relationship: 'ابن', parentName: 'احمد محمد علي', maritalStatus: 'متزوج', educationLevel: 'متوسط', work: 'عامل', memberIncome: 20000, healthStatus: 'سليم' },
+          { seq: 4, name: 'حسين احمد', gender: 'ذكر', age: 22, relationship: 'ابن', parentName: 'احمد محمد علي', maritalStatus: 'أعزب', educationLevel: 'ثانوي', work: 'طالب', healthStatus: 'سليم' },
+          { seq: 5, name: 'زينب احمد', gender: 'أنثى', age: 20, relationship: 'ابنة', parentName: 'احمد محمد علي', maritalStatus: 'أعزب', educationLevel: 'ثانوي', healthStatus: 'سليم' },
+          { seq: 6, name: 'مريم احمد', gender: 'أنثى', age: 16, relationship: 'ابنة', parentName: 'احمد محمد علي', maritalStatus: 'أعزب', educationLevel: 'متوسط', healthStatus: 'سليم' },
+          { seq: 7, name: 'يوسف احمد', gender: 'ذكر', age: 12, relationship: 'ابن', parentName: 'احمد محمد علي', maritalStatus: 'أعزب', educationLevel: 'ابتدائي', healthStatus: 'مريض', chronicDisease: 'ربو' },
+          { seq: 8, name: 'خديجة احمد', gender: 'أنثى', age: 8, relationship: 'ابنة', parentName: 'احمد محمد علي', maritalStatus: 'أعزب', educationLevel: 'ابتدائي', healthStatus: 'سليم' },
+        ],
+        housing: { type: 'شقة', ownership: 'إيجار', moveDate: '2005', rooms: 3, electricity: 'نعم', water: 'نعم', sewage: 'نعم', internet: 'لا', gas: 'لا', housingNotes: 'شقة مستأجرة - 3 غرف وصالة ومطبخ' },
+        migration: [{ migName: 'عبدالرحمن احمد', departureDate: '2020', migDestination: 'الرياض', migReason: 'العمل', insideYemen: 'خارج اليمن', country: 'السعودية' }],
+        diseases: [{ disName: 'احمد محمد علي', chronicDisease: 'ضغط الدم', needsTreatment: 'نعم' }, { disName: 'يوسف احمد', chronicDisease: 'ربو', needsTreatment: 'نعم' }],
+      },
+      {
+        formNumber: 'EST-002', familyNumber: 'FAM-002', visitDate: '2026-07-02', researcherName: 'عبدالله حسن',
+        governorate: 'حجة', directorate: 'الصليف', isolation: 'راس عيسى', village: 'راس عيسى', neighborhood: 'حي النور', street: 'شارع الشهداء', houseNumber: '22',
+        headName: 'صالح عبدالرحمن', phone: '773456789', currentFamilySize: 6, previousFamilySize: 7, maleCount: 3, femaleCount: 3, marriedCount: 1, deceasedCount: 0, migrantCount: 1,
+        migrationDestination: 'عدن', residenceDate: '2010', previousResidence: 'الحديدة', previousGovernorate: 'الحديدة', previousDirectorate: 'الحديدة',
+        housingType: 'غرفة', housingCondition: 'سيئ', mainIncomeSource: 'بيع الخضرة', otherIncomeSources: '', averageIncome: 35000, financialStatus: 'ضعيف',
+        notes: 'عائلة مهاجرة من الحديدة - تعمل في سوق الخضرة',
+        members: [
+          { seq: 1, name: 'صالح عبدالرحمن', gender: 'ذكر', age: 40, relationship: 'رب الأسرة', parentName: 'عبدالرحمن', maritalStatus: 'متزوج', educationLevel: 'ابتدائي', work: 'بائع خضرة', memberIncome: 25000, healthStatus: 'سليم' },
+          { seq: 2, name: 'امنة صالح', gender: 'أنثى', age: 35, relationship: 'الزوجة', parentName: 'عمر', maritalStatus: 'متزوج', educationLevel: 'أمي', work: 'عمل منزلي', healthStatus: 'سليم' },
+          { seq: 3, name: 'عمر صالح', gender: 'ذكر', age: 18, relationship: 'ابن', parentName: 'صالح عبدالرحمن', maritalStatus: 'أعزب', educationLevel: 'متوسط', work: 'مساعد والده', memberIncome: 5000, healthStatus: 'سليم' },
+          { seq: 4, name: 'نورة صالح', gender: 'أنثى', age: 15, relationship: 'ابنة', parentName: 'صالح عبدالرحمن', maritalStatus: 'أعزب', educationLevel: 'متوسط', healthStatus: 'سليم' },
+          { seq: 5, name: 'مها صالح', gender: 'أنثى', age: 12, relationship: 'ابنة', parentName: 'صالح عبدالرحمن', maritalStatus: 'أعزب', educationLevel: 'ابتدائي', healthStatus: 'مريض', chronicDisease: 'حساسية' },
+          { seq: 6, name: 'يوسف صالح', gender: 'ذكر', age: 5, relationship: 'ابن', parentName: 'صالح عبدالرحمن', maritalStatus: 'أعزب', educationLevel: 'أمي', healthStatus: 'سليم' },
+        ],
+        housing: { type: 'غرفة', ownership: 'إيجار', moveDate: '2010', rooms: 2, electricity: 'نعم', water: 'نعم', sewage: 'لا', internet: 'لا', gas: 'لا', housingNotes: 'غرفة واحدة مع حمام -CONDITION سيئ' },
+        migration: [{ migName: 'احمد صالح', departureDate: '2022', migDestination: 'عدن', migReason: 'العمل', insideYemen: 'داخل اليمن', country: 'اليمن' }],
+        diseases: [{ disName: 'مها صالح', chronicDisease: 'حساسية جلدية', needsTreatment: 'نعم' }],
+      },
+      {
+        formNumber: 'EST-003', familyNumber: 'FAM-003', visitDate: '2026-07-03', researcherName: 'محمد علي',
+        governorate: 'حجة', directorate: 'الصليف', isolation: 'راس عيسى', village: 'راس عيسى', neighborhood: 'حي التوحيد', street: 'شارع الجامع', houseNumber: '8',
+        headName: 'موسى ابراهيم', phone: '775678901', currentFamilySize: 12, previousFamilySize: 14, maleCount: 7, femaleCount: 5, marriedCount: 4, deceasedCount: 2, migrantCount: 1,
+        migrationDestination: 'القاهرة', residenceDate: '1995', previousResidence: 'المخا', previousGovernorate: 'تعز', previousDirectorate: 'المخا',
+        housingType: 'فيلا', housingCondition: 'جيد', mainIncomeSource: 'التجارة', otherIncomeSources: 'ال аренд العقارات', averageIncome: 200000, financialStatus: 'جيد',
+        notes: 'عائلة كبيرة - الأب تاجر معروف في المنطقة',
+        members: [
+          { seq: 1, name: 'موسى ابراهيم', gender: 'ذكر', age: 65, relationship: 'رب الأسرة', parentName: 'ابراهيم', maritalStatus: 'متزوج', educationLevel: 'ثانوي', work: 'تاجر', memberIncome: 150000, healthStatus: 'مريض', chronicDisease: 'السكري' },
+          { seq: 2, name: 'khadija موسى', gender: 'أنثى', age: 60, relationship: 'الزوجة', parentName: 'علي', maritalStatus: 'متزوج', educationLevel: 'أمي', work: 'عمل منزلي', healthStatus: 'مريض', chronicDisease: 'ضغط الدم' },
+          { seq: 3, name: 'حسن موسى', gender: 'ذكر', age: 40, relationship: 'ابن', parentName: 'موسى ابراهيم', maritalStatus: 'متزوج', educationLevel: 'جامعي', work: 'مهندس', memberIncome: 80000, healthStatus: 'سليم' },
+          { seq: 4, name: 'منى موسى', gender: 'أنثى', age: 38, relationship: 'ابنة', parentName: 'موسى ابراهيم', maritalStatus: 'متزوج', educationLevel: 'ثانوي', work: 'معلمة', memberIncome: 40000, healthStatus: 'سليم' },
+          { seq: 5, name: 'عمر موسى', gender: 'ذكر', age: 35, relationship: 'ابن', parentName: 'موسى ابراهيم', maritalStatus: 'متزوج', educationLevel: 'متوسط', work: 'سائق', memberIncome: 30000, healthStatus: 'سليم' },
+          { seq: 6, name: 'سمير موسى', gender: 'ذكر', age: 30, relationship: 'ابن', parentName: 'موسى ابراهيم', maritalStatus: 'أعزب', educationLevel: 'ثانوي', work: 'عامل', memberIncome: 25000, healthStatus: 'سليم' },
+          { seq: 7, name: 'فاطمة موسى', gender: 'أنثى', age: 28, relationship: 'ابنة', parentName: 'موسى ابراهيم', maritalStatus: 'متزوج', educationLevel: 'متوسط', healthStatus: 'سليم' },
+          { seq: 8, name: 'احمد موسى', gender: 'ذكر', age: 25, relationship: 'ابن', parentName: 'موسى ابراهيم', maritalStatus: 'متزوج', educationLevel: 'متوسط', work: 'تجار', memberIncome: 35000, healthStatus: 'سليم' },
+          { seq: 9, name: 'نور موسى', gender: 'أنثى', age: 22, relationship: 'ابنة', parentName: 'موسى ابراهيم', maritalStatus: 'أعزب', educationLevel: 'ثانوي', healthStatus: 'سليم' },
+          { seq: 10, name: 'ياسر موسى', gender: 'ذكر', age: 20, relationship: 'ابن', parentName: 'موسى ابراهيم', maritalStatus: 'أعزب', educationLevel: 'متوسط', work: 'طالب جامعي', healthStatus: 'سليم' },
+          { seq: 11, name: 'هبة موسى', gender: 'أنثى', age: 18, relationship: 'ابنة', parentName: 'موسى ابراهيم', maritalStatus: 'أعزب', educationLevel: 'ثانوي', healthStatus: 'سليم' },
+          { seq: 12, name: 'خالد موسى', gender: 'ذكر', age: 15, relationship: 'ابن', parentName: 'موسى ابراهيم', maritalStatus: 'أعزب', educationLevel: 'متوسط', healthStatus: 'سليم' },
+        ],
+        housing: { type: 'فيلا', ownership: 'ملك', moveDate: '1995', rooms: 8, electricity: 'نعم', water: 'نعم', sewage: 'نعم', internet: 'نعم', gas: 'نعم', housingNotes: 'فيلا كبيرة - 8 غرف و3 حمامات ومطبخ كبير وصالة' },
+        migration: [{ migName: 'يوسف موسى', departureDate: '2015', migDestination: 'القاهرة', migReason: 'الدراسة', insideYemen: 'خارج اليمن', country: 'مصر' }],
+        diseases: [{ disName: 'موسى ابراهيم', chronicDisease: 'السكري', needsTreatment: 'نعم' }, { disName: 'khadija موسى', chronicDisease: 'ضغط الدم', needsTreatment: 'نعم' }],
+      },
+    ];
+    await Census.insertMany(samples);
+    console.log(`Seeded ${samples.length} sample census families`);
   } catch (e) {
     console.error('Census seed error:', e.message);
   }
