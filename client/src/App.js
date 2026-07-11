@@ -23,6 +23,7 @@ const TAB_LIST = [
   { id: 'reports', label: 'التقارير', icon: '📊' },
   { id: 'feedback', label: 'الملاحظات', icon: '💬' },
   { id: 'subscribe', label: 'الاشتراك', icon: '✉️' },
+  { id: 'admin', label: 'لوحة الإدارة', icon: '⚙️' },
 ];
 
 function AppContent() {
@@ -32,6 +33,7 @@ function AppContent() {
   const visibleTabs = TAB_LIST.filter(tab => {
     if (tab.id === 'subscribe') return true;
     if (tab.id === 'feedback') return true;
+    if (tab.id === 'admin') return isAdmin;
     return isAdmin || hasPermission(tab.id);
   });
 
@@ -65,11 +67,11 @@ function AppContent() {
             {activeTab === 'reports' && <Reports />}
             {activeTab === 'feedback' && <Feedback />}
             {activeTab === 'subscribe' && <Subscribe />}
+            {activeTab === 'admin' && isAdmin && <AdminPanel />}
           </div>
         </div>
       </div>
 
-      <AdminPanel />
       <Footer />
     </div>
   );

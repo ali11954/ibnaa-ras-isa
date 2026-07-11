@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const AuthContext = createContext(null);
 
-export const TAB_IDS = ['dashboard', 'workers', 'families', 'citizens', 'reports', 'feedback', 'subscribe'];
+export const TAB_IDS = ['dashboard', 'workers', 'families', 'citizens', 'reports', 'feedback', 'subscribe', 'admin'];
 
 export const TAB_LABELS = {
   dashboard: 'لوحة التحكم',
@@ -13,6 +13,7 @@ export const TAB_LABELS = {
   reports: 'التقارير',
   feedback: 'الملاحظات',
   subscribe: 'الاشتراك',
+  admin: 'لوحة الإدارة',
 };
 
 export const AuthProvider = ({ children }) => {

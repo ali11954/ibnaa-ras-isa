@@ -5,7 +5,7 @@ import axios from 'axios';
 
 const PermissionCheckboxes = ({ selected, onChange }) => (
   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', margin: '0.5rem 0' }}>
-    {TAB_IDS.map(tab => (
+    {TAB_IDS.filter(t => t !== 'admin').map(tab => (
       <label key={tab} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.78rem', background: 'rgba(99,102,241,0.08)', padding: '0.3rem 0.6rem', borderRadius: '8px', cursor: 'pointer', border: '1px solid', borderColor: selected.includes(tab) ? 'var(--primary)' : 'rgba(99,102,241,0.15)' }}>
         <input type="checkbox" checked={selected.includes(tab)} onChange={() => {
           if (selected.includes(tab)) onChange(selected.filter(t => t !== tab));
