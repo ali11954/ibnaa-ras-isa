@@ -269,8 +269,6 @@ export default function CensusForm({ onSave, onCancel, editData }) {
             </div>
             {members.map((m, i) => {
               const isChild = m.relationship === 'ابن' || m.relationship === 'ابنة';
-              const isWife = m.relationship === 'زوجة';
-              const hasRelationship = !!m.relationship;
               return (
               <div key={i} style={{ background: 'rgba(30,41,59,0.5)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '12px', padding: '1rem', marginBottom: '0.8rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
@@ -280,38 +278,31 @@ export default function CensusForm({ onSave, onCancel, editData }) {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginBottom: '0.6rem', padding: '0.6rem', background: 'rgba(99,102,241,0.05)', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.1)' }}>
                   {renderDropdown('صلة القرابة *', 'relationship', m.relationship, v => {
-                    const updates = { relationship: v };
+                    const updated = { ...m, relationship: v };
                     if (v === 'ابن' || v === 'ابنة') {
-                      updates.parentName = family.headName || '';
-                      updates.gender = v === 'ابن' ? 'ذكر' : 'أنثى';
+                      updated.parentName = family.headName || '';
+                      updated.gender = v === 'ابن' ? 'ذكر' : 'أنثى';
                     } else if (v === 'زوجة') {
-                      updates.gender = 'أنثى';
-                      updates.parentName = '';
+                      updated.gender = 'أنثى';
+                      updated.parentName = '';
                     } else if (v === 'زوج') {
-                      updates.gender = 'ذكر';
-                      updates.parentName = '';
+                      updated.gender = 'ذكر';
+                      updated.parentName = '';
                     } else {
-                      updates.parentName = '';
+                      updated.parentName = '';
                     }
-                    updateMember(i, Object.keys(updates).find(k => false), null);
-                    Object.entries(updates).forEach(([k, val]) => updateMember(i, k, val));
+                    const newMembers = [...members];
+                    newMembers[i] = updated;
+                    setMembers(newMembers);
                   })}
                 </div>
 
-                {hasRelationship && (
+                {m.relationship && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '0.5rem' }}>
-                    {(isWife || (!isChild)) && (
-                      <div className="form-group">
-                        <label style={labelStyle}>{isWife ? 'الاسم الكامل (رباعي) *' : 'الاسم الكامل (رباعي) *'}</label>
-                        <input style={inputStyle} value={m.name} onChange={e => updateMember(i, 'name', e.target.value)} placeholder="الاسم الرباعي الكامل" />
-                      </div>
-                    )}
-                    {isChild && (
-                      <div className="form-group">
-                        <label style={labelStyle}>اسم الابن/الابنة *</label>
-                        <input style={inputStyle} value={m.name} onChange={e => updateMember(i, 'name', e.target.value)} placeholder="الاسم" />
-                      </div>
-                    )}
+                    <div className="form-group">
+                      <label style={labelStyle}>{isChild ? 'اسم الابن/الابنة *' : 'الاسم الكامل (رباعي) *'}</label>
+                      <input style={inputStyle} value={m.name || ''} onChange={e => updateMember(i, 'name', e.target.value)} placeholder={isChild ? 'الاسم' : 'الاسم الرباعي الكامل'} />
+                    </div>
                     <div className="form-group"><label style={labelStyle}>الجنس *</label>
                       <select style={inputStyle} value={m.gender} onChange={e => updateMember(i, 'gender', e.target.value)} disabled={isChild}>
                         <option value="">اختر</option><option value="ذكر">ذكر</option><option value="أنثى">أنثى</option>
