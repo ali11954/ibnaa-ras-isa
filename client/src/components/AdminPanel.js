@@ -32,6 +32,10 @@ const AdminPanel = () => {
   const [editForm, setEditForm] = useState({ name: '', email: '', phone: '', reason: '' });
   const [confirmDelete, setConfirmDelete] = useState(null);
 
+  const [editingUser, setEditingUser] = useState(null);
+  const [editUserForm, setEditUserForm] = useState({ name: '', email: '', phone: '' });
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState(null);
+
   const headers = { Authorization: `Bearer ${token}` };
 
   const loadData = useCallback(async () => {
@@ -76,6 +80,44 @@ const AdminPanel = () => {
     await axios.post(`/api/admin/reject/${id}`, {}, { headers });
     toast.success('تم رفض المستخدم');
     loadData();
+  };
+
+  const startEditUser = (u) => {
+    setEditingUser(u._id);
+    setEditUserForm({ name: u.name || '', email: u.email || '', phone: u.phone || '' });
+  };
+
+  const saveEditUser = async (id) => {
+    try {
+      await axios.put(`/api/admin/users/${id}`, editUserForm, { headers });
+      toast.success('تم تحديث بيانات المستخدم');
+      setEditingUser(null);
+      loadData();
+    } catch (err) {
+      toast.error('خطأ: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  const saveUserPermissions = async (id) => {
+    try {
+      const permissions = userPermissions[id] || [];
+      await axios.put(`/api/admin/users/${id}/permissions`, { permissions }, { headers });
+      toast.success('تم تحديث الصلاحيات');
+      loadData();
+    } catch (err) {
+      toast.error('خطأ: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  const deleteUser = async (id) => {
+    try {
+      await axios.delete(`/api/admin/users/${id}`, { headers });
+      toast.success('تم حذف المستخدم');
+      setConfirmDeleteUser(null);
+      loadData();
+    } catch (err) {
+      toast.error('خطأ: ' + (err.response?.data?.error || err.message));
+    }
   };
 
   const approveSubscriber = async (id) => {
@@ -286,19 +328,57 @@ const AdminPanel = () => {
           <div className="admin-grid">
             {approvedUsers.map(u => (
               <div className="admin-card approved" key={u._id}>
-                <div className="admin-card-header">
-                  <div className="admin-avatar">{u.name.charAt(0)}</div>
-                  <div>
-                    <strong>{u.name}</strong>
-                    <span className="admin-email">{u.username} {u.role === 'admin' ? '(مدير)' : ''}</span>
+                {editingUser === u._id ? (
+                  <div style={{ padding: '0.5rem 0' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <input type="text" value={editUserForm.name} onChange={e => setEditUserForm({ ...editUserForm, name: e.target.value })} placeholder="الاسم" style={{ padding: '0.4rem 0.6rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '6px', color: 'white', fontFamily: 'inherit', fontSize: '0.8rem' }} />
+                      <input type="email" value={editUserForm.email} onChange={e => setEditUserForm({ ...editUserForm, email: e.target.value })} placeholder="البريد الإلكتروني" style={{ padding: '0.4rem 0.6rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '6px', color: 'white', fontFamily: 'inherit', fontSize: '0.8rem' }} />
+                      <input type="text" value={editUserForm.phone} onChange={e => setEditUserForm({ ...editUserForm, phone: e.target.value })} placeholder="الهاتف" style={{ padding: '0.4rem 0.6rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '6px', color: 'white', fontFamily: 'inherit', fontSize: '0.8rem' }} />
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem' }}>
+                      <button className="btn-approve" style={{ fontSize: '0.75rem', padding: '0.3rem 0.8rem' }} onClick={() => saveEditUser(u._id)}>💾 حفظ</button>
+                      <button className="btn-reject" style={{ fontSize: '0.75rem', padding: '0.3rem 0.8rem' }} onClick={() => setEditingUser(null)}>✕ إلغاء</button>
+                    </div>
                   </div>
-                </div>
-                {u.permissions && u.permissions.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.5rem' }}>
-                    {u.permissions.map(p => (
-                      <span key={p} className="badge badge-blue" style={{ fontSize: '0.7rem' }}>{TAB_LABELS[p] || p}</span>
-                    ))}
-                  </div>
+                ) : (
+                  <>
+                    <div className="admin-card-header">
+                      <div className="admin-avatar">{u.name.charAt(0)}</div>
+                      <div>
+                        <strong>{u.name}</strong>
+                        <span className="admin-email">{u.username} {u.role === 'admin' ? '(مدير)' : ''}</span>
+                      </div>
+                    </div>
+                    {u.permissions && u.permissions.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.5rem' }}>
+                        {u.permissions.map(p => (
+                          <span key={p} className="badge badge-blue" style={{ fontSize: '0.7rem' }}>{TAB_LABELS[p] || p}</span>
+                        ))}
+                      </div>
+                    )}
+                    {u.role !== 'admin' && (
+                      <>
+                        <div style={{ margin: '0.5rem 0' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--gray-light)' }}>الصلاحيات:</span>
+                          <PermissionCheckboxes selected={userPermissions[u._id] || u.permissions || []} onChange={(p) => setUserPermissions({ ...userPermissions, [u._id]: p })} />
+                        </div>
+                        <div className="admin-card-actions" style={{ flexWrap: 'wrap', gap: '0.3rem' }}>
+                          <button className="btn-approve" style={{ fontSize: '0.75rem', padding: '0.3rem 0.8rem', background: '#10b981' }} onClick={() => saveUserPermissions(u._id)}>🔐 حفظ الصلاحيات</button>
+                          <button className="btn-reject" style={{ fontSize: '0.75rem', padding: '0.3rem 0.8rem', background: '#3b82f6' }} onClick={() => startEditUser(u)}>✏️ تعديل</button>
+                          <button className="btn-reject" style={{ fontSize: '0.75rem', padding: '0.3rem 0.8rem', background: '#ef4444' }} onClick={() => setConfirmDeleteUser(u._id)}>🗑️ حذف</button>
+                        </div>
+                        {confirmDeleteUser === u._id && (
+                          <div style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'rgba(239,68,68,0.1)', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.3)' }}>
+                            <p style={{ fontSize: '0.8rem', color: '#ef4444', margin: '0 0 0.5rem 0' }}>⚠️ هل أنت متأكد من حذف "{u.name}"?</p>
+                            <div style={{ display: 'flex', gap: '0.3rem' }}>
+                              <button className="btn-reject" style={{ fontSize: '0.7rem', padding: '0.2rem 0.6rem', background: '#ef4444' }} onClick={() => deleteUser(u._id)}>نعم، احذف</button>
+                              <button className="btn-approve" style={{ fontSize: '0.7rem', padding: '0.2rem 0.6rem', background: '#64748b' }} onClick={() => setConfirmDeleteUser(null)}>إلغاء</button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </>
                 )}
               </div>
             ))}

@@ -582,6 +582,41 @@ app.post("/api/admin/reject/:id", authMiddleware, adminMiddleware, async (req, r
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.put("/api/admin/users/:id", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { name, email, phone, permissions } = req.body;
+    const u = await User.findById(req.params.id);
+    if (!u) return res.status(404).json({ error: "Not found" });
+    if (u.role === "admin") return res.status(400).json({ error: "لا يمكن تعديل حساب المدير" });
+    if (name !== undefined) u.name = name;
+    if (email !== undefined) u.email = email;
+    if (phone !== undefined) u.phone = phone;
+    if (permissions !== undefined) u.permissions = permissions;
+    await u.save();
+    res.json(u);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put("/api/admin/users/:id/permissions", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { permissions = [] } = req.body;
+    const u = await User.findByIdAndUpdate(req.params.id, { permissions }, { new: true });
+    if (!u) return res.status(404).json({ error: "Not found" });
+    res.json(u);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete("/api/admin/users/:id", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const u = await User.findById(req.params.id);
+    if (!u) return res.status(404).json({ error: "Not found" });
+    if (u.role === "admin") return res.status(400).json({ error: "لا يمكن حذف حساب المدير" });
+    await User.findByIdAndDelete(req.params.id);
+    await Subscriber.deleteOne({ email: u.email });
+    res.json({ message: "تم حذف المستخدم بنجاح" });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ─── Data Routes (MongoDB-backed) ───────────────────────────────────────────
 app.get("/api/workers", authMiddleware, subscriberMiddleware, async (req, res) => {
   try {
