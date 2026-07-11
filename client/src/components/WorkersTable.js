@@ -122,12 +122,27 @@ const WorkersTable = () => {
     }).join('');
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`<html><head><title>كشف العمال</title>
-      <style>body{font-family:Arial,sans-serif;direction:rtl;padding:20px}table{width:100%;border-collapse:collapse;margin-top:10px}th,td{border:1px solid #333;padding:6px 8px;text-align:right;font-size:11px}th{background:#eee;font-weight:bold}h2{text-align:center}</style></head><body>
+      <style>body{font-family:Arial,sans-serif;direction:rtl;padding:20px}table{width:100%;border-collapse:collapse;margin-top:10px}th,td{border:1px solid #333;padding:6px 8px;text-align:right;font-size:11px}th{background:#eee;font-weight:bold}h2{text-align:center}@media print{.no-print{display:none}}</style></head><body>
       <h2>ابناء راس عيسى - كشف العمال</h2>
       <p>إجمالي العمال: ${pagination.total || 0} | الصفحة ${page} من ${pagination.totalPages || 1}</p>
-      <table><tr><th>#</th><th>${colHeaders}</th></tr>
-      ${workers.map((w,i)=>`<tr><td>${(page-1)*26+i+1}</td>${colCells(w)}</tr>`).join('')}
-      </table></body></html>`);
+      <table><tr><th>#</th><th>${colHeaders}</th><th>البصمة</th></tr>
+      ${workers.map((w,i)=>`<tr><td>${(page-1)*26+i+1}</td>${colCells(w)}<td style="width:80px"></td></tr>`).join('')}
+      </table>
+      <div style="background:#f0f8ff;border:1px solid #4a90d9;padding:10px;margin-top:15px;font-size:12px;border-radius:4px">
+        <strong>إقرار:</strong> أنا الموقع أدناه أقر بأن جميع البيانات المذكورة أعلاه صحيحة وأتحمل المسؤولية الكاملة تجاهها.
+      </div>
+      <br/>
+      <div style="display:flex;justify-content:space-between;margin-top:20px;font-size:12px">
+        <div style="text-align:center;width:30%">
+          <div>توقيع العامل: __________</div>
+          <div style="margin-top:5px;border-top:1px solid #333;padding-top:5px">البصمة: __________</div>
+        </div>
+        <div style="text-align:center;width:30%">
+          <div>توقيع المدير: __________</div>
+          <div style="margin-top:5px;border-top:1px solid #333;padding-top:5px">التاريخ: ____/____/____</div>
+        </div>
+      </div>
+      </body></html>`);
     printWindow.document.close(); printWindow.print();
   };
 

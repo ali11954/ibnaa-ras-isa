@@ -34,14 +34,19 @@ const FamiliesTable = () => {
 
   const handleSearch = (e) => { e.preventDefault(); setPage(1); fetchFamilies(); };
 
-  const toggleTeamMembers = async (teamNum) => {
-    if (expandedTeam === teamNum) { setExpandedTeam(null); return; }
-    setExpandedTeam(teamNum); setMembersLoading(true);
+  const fetchTeamMembers = async (teamNum) => {
+    setMembersLoading(true);
     try {
       const res = await axios.get(`/api/teams/${teamNum}/members`, { headers: { Authorization: `Bearer ${token}` } });
       setTeamMembers(res.data.members || []);
     } catch (err) { setTeamMembers([]); }
     setMembersLoading(false);
+  };
+
+  const toggleTeamMembers = async (teamNum) => {
+    if (expandedTeam === teamNum) { setExpandedTeam(null); return; }
+    setExpandedTeam(teamNum);
+    await fetchTeamMembers(teamNum);
   };
 
   const handleAddFamily = async () => {
@@ -84,32 +89,32 @@ const FamiliesTable = () => {
     const printWindow = window.open('', '_blank');
     const rows = families.map((f,i) => {
       const bens = (f.beneficiaries || []).map(b => `${b.name} (${b.amount?.toLocaleString('ar-SA') || 0} ر.ي)`).join('، ');
-      const bensCount = (f.beneficiaries || []).length;
-      return `<tr><td>${i+1}</td><td><strong>${f.teamName}</strong></td><td>${f.memberCount}</td><td>${f.leader}</td><td>${f.status}</td><td>${f.village}</td><td>${(f.individualAmount||0).toLocaleString('ar-SA')}</td><td>${(f.totalAmount||0).toLocaleString('ar-SA')}</td><td>${bens}</td><td>${bensCount}</td><td>${f.reason||''}</td></tr>`;
+      return `<tr><td>${i+1}</td><td><strong>${f.teamName}</strong></td><td>${f.memberCount}</td><td>${f.leader}</td><td>${f.status}</td><td>${f.village}</td><td>${(f.individualAmount||0).toLocaleString('ar-SA')}</td><td>${(f.totalAmount||0).toLocaleString('ar-SA')}</td><td>${bens}</td><td>${(f.beneficiaries||[]).length}</td><td>${f.reason||''}</td></tr>`;
     }).join('');
     printWindow.document.write(`<html><head><title>كشف المساعدات</title>
       <style>body{font-family:Arial,sans-serif;direction:rtl;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #333;padding:6px 8px;text-align:right;font-size:11px}th{background:#eee;font-weight:bold}h2{text-align:center}</style></head><body>
       <h2>ابناء راس عيسى - كشف المساعدات</h2>
       <p>إجمالي الفرق: ${families.length} | إجمالي المبالغ: ${families.reduce((s,f)=>s+f.totalAmount,0).toLocaleString('ar-SA')} ر.ي</p>
-      <table><tr><th>#</th><th>الفرقة</th><th>العمال</th><th>القائد</th><th>الحالة</th><th>القرية</th><th>للفرد</th><th>الإجمالي</th><th>المستفيدون (المبلغ)</th><th>عدد المستفيدين</th><th>السبب</th></tr>${rows}</table>
+      <table><tr><th>#</th><th>الفرقة</th><th>العمال</th><th>القائد</th><th>الحالة</th><th>القرية</th><th>للفرد</th><th>الإجمالي</th><th>المستفيدون</th><th>عدد</th><th>السبب</th></tr>${rows}</table>
       <br/><br/><div style="display:flex;justify-content:space-between"><div>توقيع المدير: __________</div><div>توقيع المحاسب: __________</div><div>التاريخ: __________</div></div>
       </body></html>`);
     printWindow.document.close(); printWindow.print();
   };
 
   const handlePrintTeam = async (f) => {
-    let members = teamMembers;
-    if (expandedTeam !== f.teamNumber) {
-      try {
-        const res = await axios.get(`/api/teams/${f.teamNumber}/members`, { headers: { Authorization: `Bearer ${token}` } });
-        members = res.data.members || [];
-      } catch (err) { members = []; }
-    }
-    const bens = (f.beneficiaries || []).map(b => `<tr><td>${b.name}</td><td>${(b.amount||0).toLocaleString('ar-SA')} ر.ي</td></tr>`).join('');
+    let members = [];
+    try {
+      const res = await axios.get(`/api/teams/${f.teamNumber}/members`, { headers: { Authorization: `Bearer ${token}` } });
+      members = res.data.members || [];
+    } catch (err) { members = []; }
+
+    const bens = (f.beneficiaries || []).map(b => `<tr><td>${b.name}</td><td style="text-align:center">${(b.amount||0).toLocaleString('ar-SA')} ر.ي</td></tr>`).join('');
     const benTotal = (f.beneficiaries || []).reduce((s,b) => s + (b.amount || 0), 0);
+    const memberRows = members.map((m,j) => `<tr><td style="text-align:center">${j+1}</td><td>${m.name}</td><td>${m.profession}</td><td style="text-align:center">${m.age}</td><td>${m.region}</td><td style="text-align:center;width:80px"></td></tr>`).join('');
+
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`<html><head><title>${f.teamName}</title>
-      <style>body{font-family:Arial,sans-serif;direction:rtl;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #333;padding:6px 8px;text-align:right;font-size:12px}th{background:#eee;font-weight:bold}h2{text-align:center}h3{margin-top:15px}</style></head><body>
+      <style>body{font-family:Arial,sans-serif;direction:rtl;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #333;padding:6px 8px;text-align:right;font-size:12px}th{background:#eee;font-weight:bold}h2{text-align:center}h3{margin-top:15px}@media print{.no-print{display:none}}</style></head><body>
       <h2>ابناء راس عيسى - ${f.teamName}</h2>
       <table><tr><th>البيان</th><th>القيمة</th></tr>
       <tr><td>القائد</td><td>${f.leader}</td></tr>
@@ -119,12 +124,33 @@ const FamiliesTable = () => {
       <tr><td>المبلغ للفرد</td><td>${(f.individualAmount||0).toLocaleString('ar-SA')} ر.ي</td></tr>
       <tr><td>إجمالي المبلغ</td><td>${(f.totalAmount||0).toLocaleString('ar-SA')} ر.ي</td></tr>
       <tr><td>السبب</td><td>${f.reason||''}</td></tr></table>
+
       <h3>المستفيدون (${(f.beneficiaries||[]).length}) - الإجمالي: ${benTotal.toLocaleString('ar-SA')} ر.ي</h3>
       ${bens ? `<table><tr><th>اسم المستفيد</th><th>المبلغ</th></tr>${bens}</table>` : '<p>لا يوجد مستفيدون مسجلون</p>'}
-      <h3>أعضاء الفرقة (${members.length})</h3>
-      ${members.length ? `<table><tr><th>#</th><th>الاسم</th><th>المهنة</th><th>العمر</th><th>المنطقة</th></tr>
-      ${members.map((m,j)=>`<tr><td>${j+1}</td><td>${m.name}</td><td>${m.profession}</td><td>${m.age}</td><td>${m.region}</td></tr>`).join('')}</table>` : '<p>جاري التحميل...</p>'}
-      <br/><div style="display:flex;justify-content:space-between"><div>توقيع القائد: __________</div><div>توقيع المدير: __________</div><div>التاريخ: __________</div></div>
+
+      <h3>أعضاء الفرقة (${members.length}) - المبلغ للفرد: ${(f.individualAmount||0).toLocaleString('ar-SA')} ر.ي</h3>
+      ${members.length ? `
+      <div style="background:#f0f8ff;border:1px solid #4a90d9;padding:10px;margin-bottom:10px;font-size:12px;border-radius:4px">
+        <strong>إقرار:</strong> أنا الموقع أدناه أقر بدفع المبلغ المحدد وهو <strong>${(f.individualAmount||0).toLocaleString('ar-SA')} ر.يال يمني</strong> شهرياً كمساعدة للأسر المستحقة.</div>
+      <table>
+      <tr><th>#</th><th>اسم العامل</th><th>المهنة</th><th>العمر</th><th>المنطقة</th><th style="width:100px">البصمة</th></tr>
+      ${memberRows}</table>` : '<p>لا يوجد أعضاء</p>'}
+
+      <br/>
+      <div style="display:flex;justify-content:space-between;margin-top:30px;font-size:12px">
+        <div style="text-align:center;width:30%">
+          <div>توقيع العامل: __________</div>
+          <div style="margin-top:5px;border-top:1px solid #333;padding-top:5px">البصمة: __________</div>
+        </div>
+        <div style="text-align:center;width:30%">
+          <div>توقيع القائد: __________</div>
+          <div style="margin-top:5px;border-top:1px solid #333;padding-top:5px">الاسم: ${f.leader}</div>
+        </div>
+        <div style="text-align:center;width:30%">
+          <div>توقيع المدير: __________</div>
+          <div style="margin-top:5px;border-top:1px solid #333;padding-top:5px">التاريخ: ____/____/____</div>
+        </div>
+      </div>
       </body></html>`);
     printWindow.document.close(); printWindow.print();
   };
@@ -206,12 +232,12 @@ const FamiliesTable = () => {
                     {expandedTeam===f.teamNumber && (
                       <tr className="expanded-row"><td colSpan="12">
                         <div className="expanded-content">
-                          <h4>عمال فرقة {f.teamName} ({teamMembers.length} عامل):</h4>
+                          <h4>عمال فرقة {f.teamName} - رقم الفرقة: {f.teamNumber} ({teamMembers.length} عامل):</h4>
                           {membersLoading?<div className="spinner"></div>:(
                             <div className="members-grid">{teamMembers.map((m,j)=>(
-                              <div className="member-card" key={j}>
+                              <div className="member-card" key={m._id || j}>
                                 <span className="member-num">{j+1}</span>
-                                <div className="member-info"><strong>{m.name}</strong><span>{m.profession} - {m.age} سنة - {m.region}</span></div>
+                                <div className="member-info"><strong>{m.name}</strong><span>{m.profession} - {m.age} سنة - {m.region} - فرقة {m.teamNumber}</span></div>
                               </div>
                             ))}</div>
                           )}

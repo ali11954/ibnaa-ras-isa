@@ -597,6 +597,7 @@ app.get("/api/export/workers", authMiddleware, subscriberMiddleware, async (req,
         "المهنة": w.profession,
         "رقم الفرقة": w.teamNumber,
         "ملاحظة": w.note,
+        "البصمة": "",
       }));
       const ws = XLSX.utils.json_to_sheet(data);
       const wb = XLSX.utils.book_new();
