@@ -267,36 +267,83 @@ export default function CensusForm({ onSave, onCancel, editData }) {
               <h4 style={{ margin: 0 }}>أفراد الأسرة ({members.length})</h4>
               <button className="btn-export" onClick={addMember} style={{ fontSize: '0.8rem' }}>+ إضافة فرد</button>
             </div>
-            {members.map((m, i) => (
+            {members.map((m, i) => {
+              const isChild = m.relationship === 'ابن' || m.relationship === 'ابنة';
+              const isWife = m.relationship === 'زوجة';
+              const hasRelationship = !!m.relationship;
+              return (
               <div key={i} style={{ background: 'rgba(30,41,59,0.5)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '12px', padding: '1rem', marginBottom: '0.8rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
                   <strong style={{ fontSize: '0.9rem' }}>الفرد #{i + 1}</strong>
                   <button className="btn-reject" onClick={() => removeMember(i)} style={{ fontSize: '0.7rem' }}>✕ حذف</button>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '0.5rem' }}>
-                  <div className="form-group"><label style={labelStyle}>الاسم *</label><input style={inputStyle} value={m.name} onChange={e => updateMember(i, 'name', e.target.value)} /></div>
-                  <div className="form-group"><label style={labelStyle}>الجنس *</label><select style={inputStyle} value={m.gender} onChange={e => updateMember(i, 'gender', e.target.value)}>
-                    <option value="">اختر</option><option value="ذكر">ذكر</option><option value="أنثى">أنثى</option>
-                  </select></div>
-                  <div className="form-group"><label style={labelStyle}>العمر *</label><input type="number" style={inputStyle} value={m.age} onChange={e => updateMember(i, 'age', parseInt(e.target.value) || 0)} /></div>
-                  <div className="form-group"><label style={labelStyle}>تاريخ الميلاد</label><input type="date" style={inputStyle} value={m.birthDate} onChange={e => updateMember(i, 'birthDate', e.target.value)} /></div>
-                  {renderDropdown('نوع الهوية', 'idType', m.idType, v => updateMember(i, 'idType', v), true)}
-                  <div className="form-group"><label style={labelStyle}>رقم الهوية</label><input style={inputStyle} value={m.nationalId} onChange={e => updateMember(i, 'nationalId', e.target.value)} /></div>
-                  {renderDropdown('صلة القرابة *', 'relationship', m.relationship, v => updateMember(i, 'relationship', v))}
-                  <div className="form-group"><label style={labelStyle}>اسم الأب/الأم</label><input style={inputStyle} value={m.parentName} onChange={e => updateMember(i, 'parentName', e.target.value)} /></div>
-                  {renderDropdown('الحالة الاجتماعية', 'maritalStatus', m.maritalStatus, v => updateMember(i, 'maritalStatus', v))}
-                  {renderDropdown('المستوى التعليمي', 'educationLevel', m.educationLevel, v => updateMember(i, 'educationLevel', v))}
-                  {renderDropdown('الحالة التعليمية', 'educationStatus', m.educationStatus, v => updateMember(i, 'educationStatus', v))}
-                  <div className="form-group"><label style={labelStyle}>العمل</label><input style={inputStyle} value={m.work} onChange={e => updateMember(i, 'work', e.target.value)} /></div>
-                  <div className="form-group"><label style={labelStyle}>متوسط الدخل</label><input type="number" style={inputStyle} value={m.memberIncome} onChange={e => updateMember(i, 'memberIncome', parseInt(e.target.value) || 0)} /></div>
-                  {renderDropdown('الحالة الصحية', 'healthStatus', m.healthStatus, v => updateMember(i, 'healthStatus', v))}
-                  <div className="form-group"><label style={labelStyle}>مرض مزمن</label><input style={inputStyle} value={m.chronicDisease} onChange={e => updateMember(i, 'chronicDisease', e.target.value)} /></div>
-                  <div className="form-group"><label style={labelStyle}>إصابة</label><input style={inputStyle} value={m.injury} onChange={e => updateMember(i, 'injury', e.target.value)} /></div>
-                  <div className="form-group"><label style={labelStyle}>إعاقة</label><input style={inputStyle} value={m.disability} onChange={e => updateMember(i, 'disability', e.target.value)} /></div>
-                  <div className="form-group"><label style={labelStyle}>ملاحظات</label><input style={inputStyle} value={m.memberNotes} onChange={e => updateMember(i, 'memberNotes', e.target.value)} /></div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginBottom: '0.6rem', padding: '0.6rem', background: 'rgba(99,102,241,0.05)', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.1)' }}>
+                  {renderDropdown('صلة القرابة *', 'relationship', m.relationship, v => {
+                    const updates = { relationship: v };
+                    if (v === 'ابن' || v === 'ابنة') {
+                      updates.parentName = family.headName || '';
+                      updates.gender = v === 'ابن' ? 'ذكر' : 'أنثى';
+                    } else if (v === 'زوجة') {
+                      updates.gender = 'أنثى';
+                      updates.parentName = '';
+                    } else if (v === 'زوج') {
+                      updates.gender = 'ذكر';
+                      updates.parentName = '';
+                    } else {
+                      updates.parentName = '';
+                    }
+                    updateMember(i, Object.keys(updates).find(k => false), null);
+                    Object.entries(updates).forEach(([k, val]) => updateMember(i, k, val));
+                  })}
                 </div>
+
+                {hasRelationship && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '0.5rem' }}>
+                    {(isWife || (!isChild)) && (
+                      <div className="form-group">
+                        <label style={labelStyle}>{isWife ? 'الاسم الكامل (رباعي) *' : 'الاسم الكامل (رباعي) *'}</label>
+                        <input style={inputStyle} value={m.name} onChange={e => updateMember(i, 'name', e.target.value)} placeholder="الاسم الرباعي الكامل" />
+                      </div>
+                    )}
+                    {isChild && (
+                      <div className="form-group">
+                        <label style={labelStyle}>اسم الابن/الابنة *</label>
+                        <input style={inputStyle} value={m.name} onChange={e => updateMember(i, 'name', e.target.value)} placeholder="الاسم" />
+                      </div>
+                    )}
+                    <div className="form-group"><label style={labelStyle}>الجنس *</label>
+                      <select style={inputStyle} value={m.gender} onChange={e => updateMember(i, 'gender', e.target.value)} disabled={isChild}>
+                        <option value="">اختر</option><option value="ذكر">ذكر</option><option value="أنثى">أنثى</option>
+                      </select>
+                    </div>
+                    <div className="form-group"><label style={labelStyle}>العمر *</label><input type="number" style={inputStyle} value={m.age} onChange={e => updateMember(i, 'age', parseInt(e.target.value) || 0)} /></div>
+                    <div className="form-group"><label style={labelStyle}>تاريخ الميلاد</label><input type="date" style={inputStyle} value={m.birthDate} onChange={e => updateMember(i, 'birthDate', e.target.value)} /></div>
+                    {renderDropdown('نوع الهوية', 'idType', m.idType, v => updateMember(i, 'idType', v), true)}
+                    <div className="form-group"><label style={labelStyle}>رقم الهوية</label><input style={inputStyle} value={m.nationalId} onChange={e => updateMember(i, 'nationalId', e.target.value)} /></div>
+                    <div className="form-group">
+                      <label style={labelStyle}>{isChild ? 'اسم الاب/الأم' : 'اسم الأب/الأم'}</label>
+                      {isChild ? (
+                        <input style={readOnlyStyle} value={m.parentName || family.headName || ''} readOnly />
+                      ) : (
+                        <input style={inputStyle} value={m.parentName} onChange={e => updateMember(i, 'parentName', e.target.value)} />
+                      )}
+                    </div>
+                    {renderDropdown('الحالة الاجتماعية', 'maritalStatus', m.maritalStatus, v => updateMember(i, 'maritalStatus', v))}
+                    {renderDropdown('المستوى التعليمي', 'educationLevel', m.educationLevel, v => updateMember(i, 'educationLevel', v))}
+                    {renderDropdown('الحالة التعليمية', 'educationStatus', m.educationStatus, v => updateMember(i, 'educationStatus', v))}
+                    <div className="form-group"><label style={labelStyle}>العمل</label><input style={inputStyle} value={m.work} onChange={e => updateMember(i, 'work', e.target.value)} /></div>
+                    <div className="form-group"><label style={labelStyle}>متوسط الدخل</label><input type="number" style={inputStyle} value={m.memberIncome} onChange={e => updateMember(i, 'memberIncome', parseInt(e.target.value) || 0)} /></div>
+                    {renderDropdown('الحالة الصحية', 'healthStatus', m.healthStatus, v => updateMember(i, 'healthStatus', v))}
+                    <div className="form-group"><label style={labelStyle}>مرض مزمن</label><input style={inputStyle} value={m.chronicDisease} onChange={e => updateMember(i, 'chronicDisease', e.target.value)} /></div>
+                    <div className="form-group"><label style={labelStyle}>إصابة</label><input style={inputStyle} value={m.injury} onChange={e => updateMember(i, 'injury', e.target.value)} /></div>
+                    <div className="form-group"><label style={labelStyle}>إعاقة</label><input style={inputStyle} value={m.disability} onChange={e => updateMember(i, 'disability', e.target.value)} /></div>
+                    <div className="form-group" style={{ gridColumn: 'span 2' }}><label style={labelStyle}>ملاحظات</label><input style={inputStyle} value={m.memberNotes} onChange={e => updateMember(i, 'memberNotes', e.target.value)} /></div>
+                  </div>
+                )}
               </div>
-            ))}
+              );
+            })}
             {members.length === 0 && <p style={{ textAlign: 'center', color: 'var(--gray)', padding: '2rem' }}>لا يوجد أفراد مسجلين. اضغط "إضافة فرد" للبدء.</p>}
           </div>
         )}
