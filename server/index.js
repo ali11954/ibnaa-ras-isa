@@ -83,6 +83,93 @@ const familySchema = new mongoose.Schema({
   beneficiaries: [{ name: String, amount: Number }],
 }, { timestamps: true });
 
+// ─── Census Schema ───────────────────────────────────────────────────────────
+const censusSchema = new mongoose.Schema({
+  formNumber: String,
+  familyNumber: String,
+  visitDate: String,
+  researcherName: String,
+  governorate: String,
+  directorate: String,
+  isolation: String,
+  village: String,
+  neighborhood: String,
+  street: String,
+  houseNumber: String,
+  headName: String,
+  phone: String,
+  currentFamilySize: Number,
+  previousFamilySize: Number,
+  maleCount: Number,
+  femaleCount: Number,
+  marriedCount: Number,
+  deceasedCount: Number,
+  migrantCount: Number,
+  migrationDestination: String,
+  residenceDate: String,
+  previousResidence: String,
+  previousGovernorate: String,
+  previousDirectorate: String,
+  previousIsolation: String,
+  previousVillage: String,
+  housingType: String,
+  housingCondition: String,
+  mainIncomeSource: String,
+  otherIncomeSources: String,
+  averageIncome: Number,
+  financialStatus: String,
+  notes: String,
+  members: [{
+    seq: Number,
+    name: String,
+    gender: String,
+    age: Number,
+    relationship: String,
+    parentName: String,
+    maritalStatus: String,
+    educationLevel: String,
+    educationStatus: String,
+    work: String,
+    memberIncome: Number,
+    healthStatus: String,
+    chronicDisease: String,
+    injury: String,
+    disability: String,
+    memberNotes: String,
+  }],
+  housing: {
+    type: String,
+    ownership: String,
+    moveDate: String,
+    rooms: Number,
+    electricity: String,
+    water: String,
+    sewage: String,
+    internet: String,
+    gas: String,
+    housingNotes: String,
+  },
+  migration: [{
+    migName: String,
+    departureDate: String,
+    migDestination: String,
+    migReason: String,
+    insideYemen: String,
+    country: String,
+    migNotes: String,
+  }],
+  diseases: [{
+    disName: String,
+    chronicDisease: String,
+    injuryType: String,
+    disabilityType: String,
+    injuryDate: String,
+    needsTreatment: String,
+    disNotes: String,
+  }],
+}, { timestamps: true });
+const Census = mongoose.model("Census", censusSchema);
+
 const User = mongoose.model("User", userSchema);
 const Feedback = mongoose.model("Feedback", feedbackSchema);
 const Subscriber = mongoose.model("Subscriber", subscriberSchema);
@@ -723,6 +810,169 @@ app.post("/api/email-config", authMiddleware, adminMiddleware, async (req, res) 
 app.post("/api/email-config/test-email", authMiddleware, adminMiddleware, async (req, res) => {
   const sent = await sendEmail(req.body.email || ADMIN_EMAIL, "Test Email", "<p>Test successful!</p>");
   res.json({ success: sent });
+});
+
+// ─── Census Routes ───────────────────────────────────────────────────────────
+app.get("/api/census", authMiddleware, subscriberMiddleware, async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search = "" } = req.query;
+    const filter = {};
+    if (search) filter.$or = [
+      { headName: { $regex: search, $options: "i" } },
+      { village: { $regex: search, $options: "i" } },
+      { familyNumber: { $regex: search, $options: "i" } },
+      { directorate: { $regex: search, $options: "i" } },
+    ];
+    const total = await Census.countDocuments(filter);
+    const data = await Census.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(parseInt(limit));
+    res.json({
+      data: data.map(c => ({ ...c.toObject(), id: c._id })),
+      pagination: { total, page: parseInt(page), limit: parseInt(limit), totalPages: Math.ceil(total / limit) },
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get("/api/census/summary", authMiddleware, subscriberMiddleware, async (req, res) => {
+  try {
+    const totalForms = await Census.countDocuments();
+    const agg = await Census.aggregate([
+      { $group: {
+        _id: null,
+        totalPopulation: { $sum: { $add: ["$maleCount", "$femaleCount"] } },
+        totalMales: { $sum: "$maleCount" },
+        totalFemales: { $sum: "$femaleCount" },
+        totalMigrants: { $sum: "$migrantCount" },
+        totalDeceased: { $sum: "$deceasedCount" },
+        totalMarried: { $sum: "$marriedCount" },
+        avgIncome: { $avg: "$averageIncome" },
+      }}
+    ]);
+    const totalMembers = await Census.aggregate([
+      { $unwind: "$members" },
+      { $count: "total" },
+    ]);
+    const villageStats = await Census.aggregate([
+      { $group: { _id: "$village", forms: { $sum: 1 }, population: { $sum: { $add: ["$maleCount", "$femaleCount"] } } } },
+      { $sort: { population: -1 } },
+    ]);
+    const genderByAge = await Census.aggregate([
+      { $unwind: "$members" },
+      { $group: {
+        _id: { gender: "$members.gender", age: "$members.age" },
+        count: { $sum: 1 },
+      }},
+      { $sort: { "_id.age": 1 } },
+    ]);
+    const healthStats = await Census.aggregate([
+      { $unwind: "$members" },
+      { $group: {
+        _id: "$members.healthStatus",
+        count: { $sum: 1 },
+      }},
+      { $sort: { count: -1 } },
+    ]);
+    const educationStats = await Census.aggregate([
+      { $unwind: "$members" },
+      { $group: {
+        _id: "$members.educationLevel",
+        count: { $sum: 1 },
+      }},
+      { $sort: { count: -1 } },
+    ]);
+    const housingTypes = await Census.aggregate([
+      { $group: { _id: "$housingType", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+    ]);
+    res.json({
+      totalForms,
+      totalPopulation: agg[0]?.totalPopulation || 0,
+      totalMales: agg[0]?.totalMales || 0,
+      totalFemales: agg[0]?.totalFemales || 0,
+      totalMigrants: agg[0]?.totalMigrants || 0,
+      totalDeceased: agg[0]?.totalDeceased || 0,
+      totalMarried: agg[0]?.totalMarried || 0,
+      avgIncome: Math.round(agg[0]?.avgIncome || 0),
+      totalMembers: totalMembers[0]?.total || 0,
+      villageStats: villageStats.filter(v => v._id).map(v => ({ name: v._id, forms: v.forms, population: v.population })),
+      genderByAge: genderByAge.filter(g => g._id.age).map(g => ({ gender: g._id.gender, age: g._id.age, count: g.count })),
+      healthStats: healthStats.filter(h => h._id).map(h => ({ name: h._id, count: h.count })),
+      educationStats: educationStats.filter(e => e._id).map(e => ({ name: e._id, count: e.count })),
+      housingTypes: housingTypes.filter(h => h._id).map(h => ({ name: h._id, count: h.count })),
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get("/api/census/:id", authMiddleware, subscriberMiddleware, async (req, res) => {
+  try {
+    const census = await Census.findById(req.params.id);
+    if (!census) return res.status(404).json({ error: "Not found" });
+    res.json(census);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post("/api/census", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const census = await Census.create(req.body);
+    res.json(census);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put("/api/census/:id", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const census = await Census.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(census);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete("/api/census/:id", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    await Census.findByIdAndDelete(req.params.id);
+    res.json({ message: "Deleted" });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get("/api/export/census", authMiddleware, subscriberMiddleware, async (req, res) => {
+  try {
+    const { format } = req.query;
+    const data = await Census.find().sort({ createdAt: -1 });
+    if (format === "excel") {
+      const rows = [];
+      data.forEach(c => {
+        if (c.members && c.members.length > 0) {
+          c.members.forEach((m, i) => {
+            rows.push({
+              "رقم الاستمارة": c.formNumber, "رقم الأسرة": c.familyNumber,
+              "اسم رب الأسرة": c.headName, "القرية": c.village, "المديرية": c.directorate,
+              "المحافظة": c.governorate, "الحي": c.neighborhood, "الشارع": c.street,
+              "رقم المنزل": c.houseNumber, "الهاتف": c.phone,
+              "عدد الأسرة": c.currentFamilySize, "الذكور": c.maleCount, "الإناث": c.femaleCount,
+              "المتزوجين": c.marriedCount, "المتوفين": c.deceasedCount, "المهاجرين": m.migrantCount,
+              "متوسط الدخل": c.averageIncome, "الحالة المادية": c.financialStatus,
+              "م": m.seq, "الاسم_الفرد": m.name, "الجنس": m.gender, "العمر": m.age,
+              "صلة القرابة": m.relationship, "الحالة الاجتماعية": m.maritalStatus,
+              "المستوى التعليمي": m.educationLevel, "العمل": m.work, "الحالة الصحية": m.healthStatus,
+              "مرض مزمن": m.chronicDisease, "إعاقة": m.disability,
+            });
+          });
+        } else {
+          rows.push({
+            "رقم الاستمارة": c.formNumber, "رقم الأسرة": c.familyNumber,
+            "اسم رب الأسرة": c.headName, "القرية": c.village, "المديرية": c.directorate,
+            "المحافظة": c.governorate, "عدد الأسرة": c.currentFamilySize,
+            "الذكور": c.maleCount, "الإناث": c.femaleCount,
+          });
+        }
+      });
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "التعداد السكاني");
+      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      res.setHeader("Content-Disposition", "attachment; filename=census_data.xlsx");
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      return res.send(buf);
+    }
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ─── Serve React Build ──────────────────────────────────────────────────────
