@@ -40,6 +40,7 @@ const WorkersTable = () => {
     region:'', birthPlace:'', currentPlace:'', profession:'',
     teamNumber:'', note:''
   });
+  const [editingWorker, setEditingWorker] = useState(null);
 
   useEffect(() => { localStorage.setItem('workerCols', JSON.stringify(columns)); }, [columns]);
 
@@ -104,6 +105,28 @@ const WorkersTable = () => {
       toast.success('تم الحذف');
       fetchWorkers();
     } catch (err) { toast.error('خطأ في الحذف'); }
+  };
+
+  const handleEditWorker = async () => {
+    if (!editingWorker.name || !editingWorker.teamNumber) { toast.error('أدخل الاسم ورقم الفرقة'); return; }
+    try {
+      await axios.put(`/api/workers/${editingWorker._id}`, {
+        name: editingWorker.name,
+        nationalId: editingWorker.nationalId,
+        birthYear: parseInt(editingWorker.birthYear) || 0,
+        age: parseInt(editingWorker.age) || 30,
+        ageGroup: editingWorker.ageGroup,
+        region: editingWorker.region,
+        birthPlace: editingWorker.birthPlace,
+        currentPlace: editingWorker.currentPlace,
+        profession: editingWorker.profession,
+        teamNumber: parseInt(editingWorker.teamNumber),
+        note: editingWorker.note,
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      toast.success('تم تعديل العامل');
+      setEditingWorker(null);
+      fetchWorkers();
+    } catch (err) { toast.error(err.response?.data?.error || 'خطأ في التعديل'); }
   };
 
   const fetchTransferLog = async () => {
@@ -274,6 +297,7 @@ const WorkersTable = () => {
                   {columns.note && <td><span className="badge badge-orange">{w.note}</span></td>}
                   <td>
                     {isAdmin && <button className="btn-members" onClick={() => setTransferWorker(w)} style={{fontSize:'0.7rem'}}>نقل</button>}
+                    {isAdmin && <button className="btn-edit" onClick={() => setEditingWorker({...w, birthYear: w.birthYear || ''})} style={{fontSize:'0.7rem',marginLeft:'4px'}}>✏️</button>}
                     {isAdmin && <button className="btn-reject" onClick={() => handleDeleteWorker(w._id, w.name)} style={{fontSize:'0.7rem',marginLeft:'4px'}}>حذف</button>}
                   </td>
                 </tr>
@@ -341,6 +365,40 @@ const WorkersTable = () => {
               <div className="form-group"><label>ملاحظة</label><input value={newWorker.note} onChange={e=>setNewWorker({...newWorker, note:e.target.value})} placeholder="ملاحظة" /></div>
             </div>
             <button className="btn-primary" style={{width:'100%',justifyContent:'center',marginTop:'12px'}} onClick={handleAddWorker}>إضافة العامل</button>
+          </div>
+        </div>
+      )}
+
+      {editingWorker && (
+        <div className="modal-overlay" onClick={() => setEditingWorker(null)}>
+          <div className="modal-content modal-wide" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setEditingWorker(null)}>✕</button>
+            <h3>تعديل بيانات العامل</h3>
+            <div className="form-grid">
+              <div className="form-group"><label>الاسم *</label><input value={editingWorker.name} onChange={e=>setEditingWorker({...editingWorker, name:e.target.value})} placeholder="الاسم الكامل" /></div>
+              <div className="form-group"><label>الرقم الوطني</label><input value={editingWorker.nationalId} onChange={e=>setEditingWorker({...editingWorker, nationalId:e.target.value})} placeholder="الرقم الوطني" /></div>
+              <div className="form-group"><label>سنة الميلاد</label><input type="number" value={editingWorker.birthYear} onChange={e=>setEditingWorker({...editingWorker, birthYear:e.target.value})} placeholder="1990" /></div>
+              <div className="form-group"><label>العمر</label><input type="number" value={editingWorker.age} onChange={e=>setEditingWorker({...editingWorker, age:e.target.value})} placeholder="35" /></div>
+              <div className="form-group"><label>الفئة العمرية</label><select value={editingWorker.ageGroup} onChange={e=>setEditingWorker({...editingWorker, ageGroup:e.target.value})}>
+                <option value="">اختر الفئة</option>
+                <option value="18-24">18-24</option>
+                <option value="25-34">25-34</option>
+                <option value="35-44">35-44</option>
+                <option value="45-54">45-54</option>
+                <option value="55-64">55-64</option>
+                <option value="65+">65+</option>
+              </select></div>
+              <div className="form-group"><label>المنطقة</label><input value={editingWorker.region} onChange={e=>setEditingWorker({...editingWorker, region:e.target.value})} placeholder="المنطقة" /></div>
+              <div className="form-group"><label>مكان الميلاد</label><input value={editingWorker.birthPlace} onChange={e=>setEditingWorker({...editingWorker, birthPlace:e.target.value})} placeholder="مكان الميلاد" /></div>
+              <div className="form-group"><label>المكان الحالي</label><input value={editingWorker.currentPlace} onChange={e=>setEditingWorker({...editingWorker, currentPlace:e.target.value})} placeholder="المكان الحالي" /></div>
+              <div className="form-group"><label>المهنة</label><input value={editingWorker.profession} onChange={e=>setEditingWorker({...editingWorker, profession:e.target.value})} placeholder="المهنة" /></div>
+              <div className="form-group"><label>رقم الفرقة *</label><select value={editingWorker.teamNumber} onChange={e=>setEditingWorker({...editingWorker, teamNumber:e.target.value})}>
+                <option value="">اختر الفرقة</option>
+                {Array.from({length:30}, (_,i)=>i+1).map(t=><option key={t} value={t}>الفرقة {t}</option>)}
+              </select></div>
+              <div className="form-group"><label>ملاحظة</label><input value={editingWorker.note} onChange={e=>setEditingWorker({...editingWorker, note:e.target.value})} placeholder="ملاحظة" /></div>
+            </div>
+            <button className="btn-primary" style={{width:'100%',justifyContent:'center',marginTop:'12px'}} onClick={handleEditWorker}>حفظ التعديلات</button>
           </div>
         </div>
       )}

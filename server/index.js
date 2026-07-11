@@ -475,6 +475,25 @@ app.get("/api/families", authMiddleware, subscriberMiddleware, async (req, res) 
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.get("/api/families/summary", authMiddleware, subscriberMiddleware, async (req, res) => {
+  try {
+    const totalTeams = await Family.countDocuments();
+    const agg = await Family.aggregate([
+      { $group: { _id: null, totalAmount: { $sum: "$totalAmount" }, totalBens: { $sum: { $size: "$beneficiaries" } } } }
+    ]);
+    const teamCounts = await Worker.aggregate([
+      { $group: { _id: "$teamNumber", count: { $sum: 1 } } }
+    ]);
+    const totalWorkers = teamCounts.reduce((s, t) => s + t.count, 0);
+    res.json({
+      totalTeams,
+      totalWorkers,
+      totalAmount: agg[0]?.totalAmount || 0,
+      totalBens: agg[0]?.totalBens || 0,
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get("/api/stats", authMiddleware, subscriberMiddleware, async (req, res) => {
   try {
     const totalWorkers = await Worker.countDocuments();
