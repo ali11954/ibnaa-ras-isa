@@ -3,13 +3,14 @@ import axios from 'axios';
 
 const AuthContext = createContext(null);
 
-export const TAB_IDS = ['dashboard', 'workers', 'families', 'citizens', 'feedback', 'subscribe'];
+export const TAB_IDS = ['dashboard', 'workers', 'families', 'citizens', 'reports', 'feedback', 'subscribe'];
 
 export const TAB_LABELS = {
   dashboard: 'لوحة التحكم',
   workers: 'كشف العمال',
   families: 'كشف المساعدات',
   citizens: 'إحصاء المواطنين',
+  reports: 'التقارير',
   feedback: 'الملاحظات',
   subscribe: 'الاشتراك',
 };

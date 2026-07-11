@@ -9,6 +9,7 @@ import Dashboard from './components/Dashboard';
 import WorkersTable from './components/WorkersTable';
 import FamiliesTable from './components/FamiliesTable';
 import CitizensStats from './components/CitizensStats';
+import Reports from './components/Reports';
 import Feedback from './components/Feedback';
 import Subscribe from './components/Subscribe';
 import AdminPanel from './components/AdminPanel';
@@ -19,6 +20,7 @@ const TAB_LIST = [
   { id: 'workers', label: 'كشف العمال', icon: '👷' },
   { id: 'families', label: 'كشف المساعدات', icon: '👨‍👩‍👧‍👦' },
   { id: 'citizens', label: 'إحصاء المواطنين', icon: '📋' },
+  { id: 'reports', label: 'التقارير', icon: '📊' },
   { id: 'feedback', label: 'الملاحظات', icon: '💬' },
   { id: 'subscribe', label: 'الاشتراك', icon: '✉️' },
 ];
@@ -30,6 +32,7 @@ function AppContent() {
   const visibleTabs = TAB_LIST.filter(tab => {
     if (tab.id === 'subscribe') return true;
     if (tab.id === 'feedback') return true;
+    if (tab.id === 'reports') return true;
     return isAdmin || hasPermission(tab.id);
   });
 
@@ -60,6 +63,7 @@ function AppContent() {
             {activeTab === 'workers' && isTabVisible && <WorkersTable />}
             {activeTab === 'families' && isTabVisible && <FamiliesTable />}
             {activeTab === 'citizens' && isTabVisible && <CitizensStats />}
+            {activeTab === 'reports' && <Reports />}
             {activeTab === 'feedback' && <Feedback />}
             {activeTab === 'subscribe' && <Subscribe />}
           </div>
