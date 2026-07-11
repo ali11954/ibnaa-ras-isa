@@ -864,12 +864,26 @@ app.get("/api/subscribers", authMiddleware, adminMiddleware, async (req, res) =>
 
 app.post("/api/subscribers/subscribe", async (req, res) => {
   try {
-    const { email, name, phone, reason, permissions = [] } = req.body;
-    const exists = await Subscriber.findOne({ email });
-    if (exists) return res.status(400).json({ error: "Already subscribed" });
+    const { email, username, password, name, phone, reason, permissions = [] } = req.body;
+    if (!email || !username || !password || !name) return res.status(400).json({ error: "جميع الحقول المطلوبة يجب إدخالها" });
+    const existsEmail = await Subscriber.findOne({ email });
+    if (existsEmail) return res.status(400).json({ error: "هذا البريد الإلكتروني مسجل بالفعل" });
+    const existsUser = await User.findOne({ username });
+    if (existsUser) return res.status(400).json({ error: "اسم المستخدم مستخدم بالفعل" });
     const sub = await Subscriber.create({ email, name, phone, reason, permissions });
-    await sendEmail(email, "Subscription Request", "<p>Your subscription request has been received.</p>");
-    res.json({ message: "Subscription request submitted", subscriber: sub });
+    const token = crypto.randomBytes(32).toString("hex");
+    await User.create({
+      username,
+      password: hashPassword(password),
+      name,
+      email,
+      phone,
+      role: "pending",
+      approved: false,
+      token,
+    });
+    await sendEmail(email, "Subscription Request", "<p>Your subscription request has been received. You can login after admin approval.</p>");
+    res.json({ message: "تم تسجيل اشتراكك بنجاح. يمكنك الدخول بعد موافقة المدير." });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -879,7 +893,7 @@ app.post("/api/subscribers/:id/approve", authMiddleware, adminMiddleware, async 
     const sub = await Subscriber.findByIdAndUpdate(req.params.id, { approved: true, permissions }, { new: true });
     if (!sub) return res.status(404).json({ error: "Not found" });
     let user = await User.findOne({ email: sub.email });
-    if (user) {
+    if (user && user.role !== "admin") {
       user.approved = true;
       user.role = "user";
       user.permissions = permissions;
@@ -1104,6 +1118,16 @@ async function start() {
         token,
       });
       console.log("Admin user created (admin / admin123)");
+    } else {
+      if (adminExists.role !== "admin") {
+        adminExists.role = "admin";
+        await adminExists.save();
+        console.log("Fixed admin role back to admin");
+      }
+      if (!adminExists.approved) {
+        adminExists.approved = true;
+        await adminExists.save();
+      }
     }
 
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

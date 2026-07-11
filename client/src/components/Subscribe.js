@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
-import { FiMail, FiCheck, FiPhone, FiUser, FiMessageSquare } from 'react-icons/fi';
+import { FiMail, FiCheck, FiPhone, FiUser, FiMessageSquare, FiLock } from 'react-icons/fi';
 
 const Subscribe = () => {
-  const [form, setForm] = useState({ name: '', email: '', phone: '', reason: '' });
+  const [form, setForm] = useState({ name: '', username: '', password: '', email: '', phone: '', reason: '' });
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name || !form.email) { toast.error('يرجى إدخال الاسم والبريد الإلكتروني'); return; }
+    if (!form.name || !form.username || !form.password || !form.email) { toast.error('يرجى إدخال جميع الحقول المطلوبة'); return; }
+    if (form.username.length < 3) { toast.error('اسم المستخدم يجب أن يكون 3 أحرف على الأقل'); return; }
+    if (form.password.length < 4) { toast.error('كلمة المرور يجب أن تكون 4 أحرف على الأقل'); return; }
     setLoading(true);
     try {
       const res = await fetch('/api/subscribers/subscribe', {
@@ -36,7 +38,7 @@ const Subscribe = () => {
         <div className="success-box">
           <div className="success-icon">✓</div>
           <h3>تم تسجيل اشتراكك!</h3>
-          <p>حسابك في انتظار موافقة المدير. سيتم إشعارك عند التفعيل.</p>
+          <p>حسابك في انتظار موافقة المدير. يمكنك تسجيل الدخول بعد التفعيل.</p>
         </div>
       ) : (
         <div className="subscribe-form-wrapper">
@@ -44,6 +46,14 @@ const Subscribe = () => {
             <div className="form-group">
               <label><FiUser /> الاسم الكامل *</label>
               <input type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="أدخل اسمك الكامل" required />
+            </div>
+            <div className="form-group">
+              <label><FiUser /> اسم المستخدم *</label>
+              <input type="text" value={form.username} onChange={e => setForm({...form, username: e.target.value})} placeholder="اسم المستخدم للدخول" required />
+            </div>
+            <div className="form-group">
+              <label><FiLock /> كلمة المرور *</label>
+              <input type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder="كلمة المرور" required />
             </div>
             <div className="form-group">
               <label><FiMail /> البريد الإلكتروني *</label>
