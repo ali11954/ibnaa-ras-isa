@@ -5,7 +5,8 @@ import { toast } from 'react-toastify';
 import CensusForm from './CensusForm';
 
 const CitizensStats = () => {
-  const { token, isAdmin } = useAuth();
+  const { token, isAdmin, hasPermission } = useAuth();
+  const canManage = isAdmin || hasPermission('citizens');
   const [censusData, setCensusData] = useState([]);
   const [censusSummary, setCensusSummary] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -102,7 +103,7 @@ const CitizensStats = () => {
       </div>
 
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-        {isAdmin && <button className="btn-export" onClick={() => { setEditingCensus(null); setShowCensusForm(true); }}>➕ إضافة استمارة</button>}
+        {canManage && <button className="btn-export" onClick={() => { setEditingCensus(null); setShowCensusForm(true); }}>➕ إضافة استمارة</button>}
         <button className="btn-export" onClick={handleExportCensus}>📊 تصدير Excel</button>
         <div style={{ flex: 1, display: 'flex', gap: '0.5rem' }}>
           <input type="text" placeholder="بحث بالاسم، القرية، رقم الأسرة..." value={censusSearch} onChange={e => setCensusSearch(e.target.value)}
@@ -130,7 +131,7 @@ const CitizensStats = () => {
                   {c.averageIncome > 0 && <span>💰 {c.averageIncome.toLocaleString('ar-SA')} ر.ي</span>}
                 </div>
               </div>
-              {isAdmin && (
+              {canManage && (
                 <div style={{ display: 'flex', gap: '0.3rem' }} onClick={e => e.stopPropagation()}>
                   <button className="btn-edit" onClick={() => { setEditingCensus(c); setShowCensusForm(true); }} style={{ fontSize: '0.7rem' }}>✏️ تعديل</button>
                   <button className="btn-reject" onClick={() => handleDeleteCensus(c._id)} style={{ fontSize: '0.7rem' }}>✕ حذف</button>

@@ -1023,7 +1023,10 @@ app.get("/api/census/:id", authMiddleware, subscriberMiddleware, async (req, res
 
 app.post("/api/census", authMiddleware, subscriberMiddleware, async (req, res) => {
   try {
-    const census = await Census.create(req.body);
+    const count = await Census.countDocuments();
+    const formNumber = `EST-${String(count + 1).padStart(3, '0')}`;
+    const familyNumber = `FAM-${String(count + 1).padStart(3, '0')}`;
+    const census = await Census.create({ ...req.body, formNumber, familyNumber });
     res.json(census);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1035,7 +1038,7 @@ app.put("/api/census/:id", authMiddleware, subscriberMiddleware, async (req, res
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete("/api/census/:id", authMiddleware, adminMiddleware, async (req, res) => {
+app.delete("/api/census/:id", authMiddleware, subscriberMiddleware, async (req, res) => {
   try {
     await Census.findByIdAndDelete(req.params.id);
     res.json({ message: "Deleted" });

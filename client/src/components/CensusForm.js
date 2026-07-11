@@ -36,7 +36,7 @@ export default function CensusForm({ onSave, onCancel, editData }) {
   const headers = { Authorization: `Bearer ${token}` };
 
   const saveFamily = async () => {
-    if (!family.headName || !family.familyNumber) { toast.error('أدخل رقم الأسرة واسم رب الأسرة'); return; }
+    if (!family.headName) { toast.error('أدخل اسم رب الأسرة'); return; }
     if (!family.visitDate) { toast.error('أدخل تاريخ الزيارة'); return; }
     if (!family.governorate || !family.directorate) { toast.error('أدخل المحافظة والمديرية'); return; }
     if (!family.phone) { toast.error('أدخل رقم الهاتف'); return; }
@@ -144,8 +144,8 @@ export default function CensusForm({ onSave, onCancel, editData }) {
       <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
         {tab === 'family' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.6rem' }}>
-            {fg('رقم الاستمارة', <input style={inputStyle} value={family.formNumber} onChange={e => setFamily({ ...family, formNumber: e.target.value })} />)}
-            {fg('رقم الأسرة *', <input style={inputStyle} value={family.familyNumber} onChange={e => setFamily({ ...family, familyNumber: e.target.value })} />)}
+            {censusId && fg('رقم الاستمارة', <input style={{ ...inputStyle, background: 'rgba(99,102,241,0.1)', cursor: 'not-allowed' }} value={family.formNumber} readOnly />)}
+            {censusId && fg('رقم الأسرة', <input style={{ ...inputStyle, background: 'rgba(99,102,241,0.1)', cursor: 'not-allowed' }} value={family.familyNumber} readOnly />)}
             {fg('تاريخ الزيارة *', <input type="date" style={inputStyle} value={family.visitDate} onChange={e => setFamily({ ...family, visitDate: e.target.value })} />)}
             {fg('اسم الباحث', <input style={inputStyle} value={family.researcherName} onChange={e => setFamily({ ...family, researcherName: e.target.value })} />)}
             {fg('المحافظة *', <input style={inputStyle} value={family.governorate} onChange={e => setFamily({ ...family, governorate: e.target.value })} />)}
