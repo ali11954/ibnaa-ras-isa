@@ -650,9 +650,21 @@ function Reports() {
               {(() => {
                 const allMembers = [];
                 filtered.forEach(c => {
+                  if (c.headName) {
+                    allMembers.push({
+                      name: c.headName, relationship: 'رب الأسرة', gender: 'ذكر',
+                      age: c.birthDate ? Math.floor((Date.now() - new Date(c.birthDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : 0,
+                      birthDate: c.birthDate || '', nationalId: c.nationalId || '', idType: c.idType || '',
+                      parentName: '', maritalStatus: 'متزوج', educationLevel: '', educationStatus: '',
+                      work: c.mainIncomeSource || '', memberIncome: c.averageIncome || 0,
+                      healthStatus: '', chronicDisease: '', injury: '', disability: '', memberNotes: '',
+                      headName: c.headName, village: c.village, familyNumber: c.familyNumber, phone: c.phone,
+                      isHead: true,
+                    });
+                  }
                   if (c.members && c.members.length > 0) {
                     c.members.forEach(m => {
-                      allMembers.push({ ...m, headName: c.headName, village: c.village, familyNumber: c.familyNumber, phone: c.phone });
+                      allMembers.push({ ...m, headName: c.headName, village: c.village, familyNumber: c.familyNumber, phone: c.phone, isHead: false });
                     });
                   }
                 });
@@ -705,10 +717,10 @@ function Reports() {
                           </thead>
                           <tbody>
                             {allMembers.map((m, i) => (
-                              <tr key={i} style={{ background: i % 2 === 0 ? 'rgba(99,102,241,0.02)' : 'transparent' }}>
-                                <td style={{ position: 'sticky', right: 0, background: i % 2 === 0 ? 'rgba(30,41,59,0.97)' : 'rgba(30,41,59,0.92)', zIndex: 1 }}>{i + 1}</td>
-                                <td style={{ fontWeight: '700' }}>{m.name || '—'}</td>
-                                <td><span className={`badge ${m.relationship === 'ابن' || m.relationship === 'ابنة' ? 'badge-blue' : m.relationship === 'زوجة' ? 'badge-green' : 'badge-orange'}`}>{m.relationship || '—'}</span></td>
+                              <tr key={i} style={{ background: m.isHead ? 'rgba(99,102,241,0.1)' : i % 2 === 0 ? 'rgba(99,102,241,0.02)' : 'transparent', fontWeight: m.isHead ? '700' : 'normal' }}>
+                                <td style={{ position: 'sticky', right: 0, background: m.isHead ? 'rgba(30,41,59,0.98)' : i % 2 === 0 ? 'rgba(30,41,59,0.97)' : 'rgba(30,41,59,0.92)', zIndex: 1 }}>{i + 1}</td>
+                                <td style={{ fontWeight: '700' }}>{m.name || '—'}{m.isHead && <span style={{ fontSize: '0.6rem', color: '#6366f1', marginRight: '0.3rem' }}>🏠</span>}</td>
+                                <td><span className={`badge ${m.isHead ? 'badge-green' : m.relationship === 'ابن' || m.relationship === 'ابنة' ? 'badge-blue' : m.relationship === 'زوجة' ? 'badge-green' : 'badge-orange'}`}>{m.relationship || '—'}</span></td>
                                 <td style={{ color: m.gender === 'ذكر' ? '#06b6d4' : '#ec4899', fontWeight: '700' }}>{m.gender || '—'}</td>
                                 <td>{m.age || '—'}</td>
                                 <td>{m.birthDate || '—'}</td>
