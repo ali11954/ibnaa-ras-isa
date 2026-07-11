@@ -7,14 +7,14 @@ const emptyFamily = {
   formNumber: '', familyNumber: '',
   visitDate: new Date().toISOString().split('T')[0],
   governorate: '', directorate: '', isolation: '', village: '', neighborhood: '', street: '', houseNumber: '',
-  headName: '', phone: '', currentFamilySize: 0,
+  headName: '', birthDate: '', nationalId: '', idType: '', phone: '', currentFamilySize: 0,
   maleCount: 0, femaleCount: 0, marriedCount: 0, deceasedCount: 0,
   residenceDate: '',
   mainIncomeSource: '', otherIncomeSources: '',
   averageIncome: 0, financialStatus: '', notes: '',
 };
 
-const emptyMember = { seq: 1, name: '', gender: '', age: 0, relationship: '', parentName: '', maritalStatus: '', educationLevel: '', educationStatus: '', work: '', memberIncome: 0, healthStatus: '', chronicDisease: '', injury: '', disability: '', memberNotes: '' };
+const emptyMember = { seq: 1, name: '', gender: '', age: 0, birthDate: '', nationalId: '', idType: '', relationship: '', parentName: '', maritalStatus: '', educationLevel: '', educationStatus: '', work: '', memberIncome: 0, healthStatus: '', chronicDisease: '', injury: '', disability: '', memberNotes: '' };
 const emptyMigration = { migName: '', departureDate: '', migDestination: '', migReason: '', insideYemen: '', country: '', migNotes: '' };
 const emptyDisease = { disName: '', chronicDisease: '', injuryType: '', disabilityType: '', injuryDate: '', needsTreatment: '', disNotes: '' };
 
@@ -38,6 +38,7 @@ const LIST_KEYS = {
   healthStatus: 'الحالة الصحية',
   educationStatus: 'الحالة التعليمية',
   otherIncomeSources: 'مصادر دخل أخرى',
+  idType: 'نوع الهوية',
 };
 
 const DROPDOWN_FIELDS = ['governorate', 'directorate', 'isolation', 'village', 'neighborhood', 'mainIncomeSource', 'otherIncomeSources', 'financialStatus', 'housingType', 'housingCondition'];
@@ -240,6 +241,9 @@ export default function CensusForm({ onSave, onCancel, editData }) {
             {fg('الشارع', <input style={inputStyle} value={family.street} onChange={e => setFamily({ ...family, street: e.target.value })} />)}
             {fg('رقم المنزل', <input style={inputStyle} value={family.houseNumber} onChange={e => setFamily({ ...family, houseNumber: e.target.value })} />)}
             {fg('اسم رب الأسرة *', <input style={inputStyle} value={family.headName} onChange={e => setFamily({ ...family, headName: e.target.value })} />)}
+            {fg('تاريخ الميلاد', <input type="date" style={inputStyle} value={family.birthDate} onChange={e => setFamily({ ...family, birthDate: e.target.value })} />)}
+            {renderDropdown('نوع الهوية', 'idType', family.idType, v => setFamily({ ...family, idType: v }))}
+            {fg('رقم الهوية', <input style={inputStyle} value={family.nationalId} onChange={e => setFamily({ ...family, nationalId: e.target.value })} />)}
             {fg('الهاتف *', <input type="tel" style={inputStyle} value={family.phone} onChange={e => setFamily({ ...family, phone: e.target.value })} />)}
             {fg('عدد الأسرة الحالي *', <input type="number" style={inputStyle} value={family.currentFamilySize} onChange={e => setFamily({ ...family, currentFamilySize: parseInt(e.target.value) || 0 })} />)}
             {fg('عدد الذكور *', <input type="number" style={inputStyle} value={family.maleCount} onChange={e => setFamily({ ...family, maleCount: parseInt(e.target.value) || 0 })} />)}
@@ -269,12 +273,15 @@ export default function CensusForm({ onSave, onCancel, editData }) {
                   <strong style={{ fontSize: '0.9rem' }}>الفرد #{i + 1}</strong>
                   <button className="btn-reject" onClick={() => removeMember(i)} style={{ fontSize: '0.7rem' }}>✕ حذف</button>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '0.5rem' }}>
                   <div className="form-group"><label style={labelStyle}>الاسم *</label><input style={inputStyle} value={m.name} onChange={e => updateMember(i, 'name', e.target.value)} /></div>
                   <div className="form-group"><label style={labelStyle}>الجنس *</label><select style={inputStyle} value={m.gender} onChange={e => updateMember(i, 'gender', e.target.value)}>
                     <option value="">اختر</option><option value="ذكر">ذكر</option><option value="أنثى">أنثى</option>
                   </select></div>
                   <div className="form-group"><label style={labelStyle}>العمر *</label><input type="number" style={inputStyle} value={m.age} onChange={e => updateMember(i, 'age', parseInt(e.target.value) || 0)} /></div>
+                  <div className="form-group"><label style={labelStyle}>تاريخ الميلاد</label><input type="date" style={inputStyle} value={m.birthDate} onChange={e => updateMember(i, 'birthDate', e.target.value)} /></div>
+                  {renderDropdown('نوع الهوية', 'idType', m.idType, v => updateMember(i, 'idType', v), true)}
+                  <div className="form-group"><label style={labelStyle}>رقم الهوية</label><input style={inputStyle} value={m.nationalId} onChange={e => updateMember(i, 'nationalId', e.target.value)} /></div>
                   {renderDropdown('صلة القرابة *', 'relationship', m.relationship, v => updateMember(i, 'relationship', v))}
                   <div className="form-group"><label style={labelStyle}>اسم الأب/الأم</label><input style={inputStyle} value={m.parentName} onChange={e => updateMember(i, 'parentName', e.target.value)} /></div>
                   {renderDropdown('الحالة الاجتماعية', 'maritalStatus', m.maritalStatus, v => updateMember(i, 'maritalStatus', v))}
