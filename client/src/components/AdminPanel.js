@@ -24,11 +24,13 @@ const AdminPanel = () => {
   const [subscribers, setSubscribers] = useState([]);
   const [emailStatus, setEmailStatus] = useState({ configured: false });
   const [gmailPass, setGmailPass] = useState('');
-  const [testEmail, setTestEmail] = useState('');
   const [feedbacks, setFeedbacks] = useState([]);
   const [replyText, setReplyText] = useState({});
   const [userPermissions, setUserPermissions] = useState({});
   const [subPermissions, setSubPermissions] = useState({});
+  const [editingSub, setEditingSub] = useState(null);
+  const [editForm, setEditForm] = useState({ name: '', email: '', phone: '', reason: '' });
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -90,6 +92,44 @@ const AdminPanel = () => {
     }
   };
 
+  const startEditSub = (s) => {
+    setEditingSub(s._id);
+    setEditForm({ name: s.name || '', email: s.email || '', phone: s.phone || '', reason: s.reason || '' });
+  };
+
+  const saveEditSub = async (id) => {
+    try {
+      await axios.put(`/api/subscribers/${id}`, editForm, { headers });
+      toast.success('تم تحديث بيانات المشترك');
+      setEditingSub(null);
+      loadData();
+    } catch (err) {
+      toast.error('خطأ في التحديث: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  const deleteSub = async (id) => {
+    try {
+      await axios.delete(`/api/subscribers/${id}`, { headers });
+      toast.success('تم حذف المشترك بنجاح');
+      setConfirmDelete(null);
+      loadData();
+    } catch (err) {
+      toast.error('خطأ في الحذف: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  const saveSubPermissions = async (id) => {
+    try {
+      const permissions = subPermissions[id] || [];
+      await axios.put(`/api/subscribers/${id}/permissions`, { permissions }, { headers });
+      toast.success('تم تحديث الصلاحيات');
+      loadData();
+    } catch (err) {
+      toast.error('خطأ في تحديث الصلاحيات: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
   const replyFeedback = async (id) => {
     if (!replyText[id]) return;
     await axios.post(`/api/feedback/${id}/reply`, { reply: replyText[id] }, { headers });
@@ -118,6 +158,84 @@ const AdminPanel = () => {
   const approvedUsers = users.filter(u => u.approved || u.role === 'admin');
   const pendingSubs = subscribers.filter(s => !s.approved);
   const approvedSubs = subscribers.filter(s => s.approved);
+
+  const subCard = (s, isPending) => (
+    <div className={`admin-card ${isPending ? 'pending' : 'approved'}`} key={s._id}>
+      {editingSub === s._id ? (
+        <div style={{ padding: '0.5rem 0' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <input type="text" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} placeholder="الاسم" style={{ padding: '0.4rem 0.6rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '6px', color: 'white', fontFamily: 'inherit', fontSize: '0.8rem' }} />
+            <input type="email" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} placeholder="البريد الإلكتروني" style={{ padding: '0.4rem 0.6rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '6px', color: 'white', fontFamily: 'inherit', fontSize: '0.8rem' }} />
+            <input type="text" value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} placeholder="الهاتف" style={{ padding: '0.4rem 0.6rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '6px', color: 'white', fontFamily: 'inherit', fontSize: '0.8rem' }} />
+            <input type="text" value={editForm.reason} onChange={e => setEditForm({ ...editForm, reason: e.target.value })} placeholder="السبب" style={{ padding: '0.4rem 0.6rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '6px', color: 'white', fontFamily: 'inherit', fontSize: '0.8rem' }} />
+          </div>
+          <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem' }}>
+            <button className="btn-approve" style={{ fontSize: '0.75rem', padding: '0.3rem 0.8rem' }} onClick={() => saveEditSub(s._id)}>💾 حفظ</button>
+            <button className="btn-reject" style={{ fontSize: '0.75rem', padding: '0.3rem 0.8rem' }} onClick={() => setEditingSub(null)}>✕ إلغاء</button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="admin-card-header">
+            <div className="admin-avatar">{isPending ? '✉' : '✓'}</div>
+            <div style={{ flex: 1 }}>
+              <strong>{s.name || s.email}</strong>
+              <span className="admin-email">{s.email}</span>
+              {s.phone && <span className="admin-email">هاتف: {s.phone}</span>}
+              <span className="admin-email">{new Date(s.createdAt).toLocaleDateString('ar-SA')}</span>
+              {s.reason && <span className="admin-email">السبب: {s.reason}</span>}
+            </div>
+          </div>
+
+          {s.permissions && s.permissions.length > 0 && !isPending && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.5rem' }}>
+              {s.permissions.map(p => (
+                <span key={p} className="badge badge-blue" style={{ fontSize: '0.7rem' }}>{TAB_LABELS[p] || p}</span>
+              ))}
+            </div>
+          )}
+
+          {isPending && s.permissions && s.permissions.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', margin: '0.3rem 0' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--gray)' }}>طلبات الصلاحيات:</span>
+              {s.permissions.map(p => (
+                <span key={p} className="badge badge-orange" style={{ fontSize: '0.7rem' }}>{TAB_LABELS[p] || p}</span>
+              ))}
+            </div>
+          )}
+
+          <div style={{ margin: '0.5rem 0' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--gray-light)' }}>الصلاحيات:</span>
+            <PermissionCheckboxes
+              selected={subPermissions[s._id] || s.permissions || []}
+              onChange={(p) => setSubPermissions({ ...subPermissions, [s._id]: p })}
+            />
+          </div>
+
+          <div className="admin-card-actions" style={{ flexWrap: 'wrap', gap: '0.3rem' }}>
+            {isPending && (
+              <button className="btn-approve" style={{ fontSize: '0.75rem', padding: '0.3rem 0.8rem' }} onClick={() => approveSubscriber(s._id)}>✓ موافقة</button>
+            )}
+            {!isPending && (
+              <button className="btn-approve" style={{ fontSize: '0.75rem', padding: '0.3rem 0.8rem', background: '#10b981' }} onClick={() => saveSubPermissions(s._id)}>🔐 حفظ الصلاحيات</button>
+            )}
+            <button className="btn-reject" style={{ fontSize: '0.75rem', padding: '0.3rem 0.8rem', background: '#3b82f6' }} onClick={() => startEditSub(s)}>✏️ تعديل</button>
+            <button className="btn-reject" style={{ fontSize: '0.75rem', padding: '0.3rem 0.8rem', background: '#ef4444' }} onClick={() => setConfirmDelete(s._id)}>🗑️ حذف</button>
+          </div>
+
+          {confirmDelete === s._id && (
+            <div style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'rgba(239,68,68,0.1)', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.3)' }}>
+              <p style={{ fontSize: '0.8rem', color: '#ef4444', margin: '0 0 0.5rem 0' }}>⚠️ هل أنت متأكد من حذف هذا المشترك "{s.name || s.email}"?</p>
+              <div style={{ display: 'flex', gap: '0.3rem' }}>
+                <button className="btn-reject" style={{ fontSize: '0.7rem', padding: '0.2rem 0.6rem', background: '#ef4444' }} onClick={() => deleteSub(s._id)}>نعم، احذف</button>
+                <button className="btn-approve" style={{ fontSize: '0.7rem', padding: '0.2rem 0.6rem', background: '#64748b' }} onClick={() => setConfirmDelete(null)}>إلغاء</button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
 
   return (
     <section className="section" id="admin">
@@ -190,60 +308,17 @@ const AdminPanel = () => {
 
       {tab === 'subscribers' && (
         <div className="admin-content">
-          <h3>اشتراكات بانتظار الموافقة</h3>
+          <h3>اشتراكات بانتظار الموافقة ({pendingSubs.length})</h3>
           {pendingSubs.length === 0 ? <p className="empty-text">لا يوجد اشتراكات بانتظار</p> : (
             <div className="admin-grid">
-              {pendingSubs.map(s => (
-                <div className="admin-card pending" key={s._id}>
-                  <div className="admin-card-header">
-                    <div className="admin-avatar">&#9993;</div>
-                    <div>
-                      <strong>{s.name || s.email}</strong>
-                      <span className="admin-email">{s.email}</span>
-                      {s.phone && <span className="admin-email">هاتف: {s.phone}</span>}
-                      <span className="admin-email">{new Date(s.createdAt).toLocaleDateString('ar-SA')}</span>
-                    </div>
-                  </div>
-                  {s.reason && <p style={{color:'var(--gray-light)',fontSize:'0.85rem',margin:'0.5rem 0'}}>السبب: {s.reason}</p>}
-                  {s.permissions && s.permissions.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', margin: '0.3rem 0' }}>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--gray)' }}>:طلبات الصلاحيات</span>
-                      {s.permissions.map(p => (
-                        <span key={p} className="badge badge-orange" style={{ fontSize: '0.7rem' }}>{TAB_LABELS[p] || p}</span>
-                      ))}
-                    </div>
-                  )}
-                  <div style={{ margin: '0.5rem 0' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--gray-light)' }}>تحديد الصلاحيات:</span>
-                    <PermissionCheckboxes selected={subPermissions[s._id] || s.permissions || []} onChange={(p) => setSubPermissions({ ...subPermissions, [s._id]: p })} />
-                  </div>
-                  <div className="admin-card-actions">
-                    <button className="btn-approve" onClick={() => approveSubscriber(s._id)}>موافقة</button>
-                  </div>
-                </div>
-              ))}
+              {pendingSubs.map(s => subCard(s, true))}
             </div>
           )}
           <h3 style={{ marginTop: '2rem' }}>المشتركون المعتمدون ({approvedSubs.length})</h3>
           <div className="admin-grid">
-            {approvedSubs.map(s => (
-              <div className="admin-card approved" key={s._id}>
-                <div className="admin-card-header">
-                  <div className="admin-avatar green">&#10003;</div>
-                  <div>
-                    <strong>{s.name || s.email}</strong>
-                    <span className="admin-email">{s.email}</span>
-                  </div>
-                </div>
-                {s.permissions && s.permissions.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.5rem' }}>
-                    {s.permissions.map(p => (
-                      <span key={p} className="badge badge-blue" style={{ fontSize: '0.7rem' }}>{TAB_LABELS[p] || p}</span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+            {approvedSubs.length === 0 ? <p className="empty-text">لا يوجد مشتركون معتمدون</p> : (
+              approvedSubs.map(s => subCard(s, false))
+            )}
           </div>
         </div>
       )}

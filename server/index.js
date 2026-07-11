@@ -904,6 +904,57 @@ app.post("/api/subscribers/:id/approve", authMiddleware, adminMiddleware, async 
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.put("/api/subscribers/:id", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { name, email, phone, reason, permissions } = req.body;
+    const sub = await Subscriber.findById(req.params.id);
+    if (!sub) return res.status(404).json({ error: "Not found" });
+    if (name !== undefined) sub.name = name;
+    if (email !== undefined) sub.email = email;
+    if (phone !== undefined) sub.phone = phone;
+    if (reason !== undefined) sub.reason = reason;
+    if (permissions !== undefined) sub.permissions = permissions;
+    await sub.save();
+    let user = await User.findOne({ email: sub.email });
+    if (!user) user = await User.findOne({ email: { $ne: sub.email } }).where('_id').in(
+      (await Subscriber.find({ email: sub.email })).map(s => s._id)
+    );
+    user = await User.findOne({ $or: [{ email: sub.email }, { username: sub.email }] });
+    if (user && user.role !== "admin") {
+      if (name !== undefined) user.name = name;
+      if (email !== undefined) user.email = email;
+      if (phone !== undefined) user.phone = phone;
+      if (permissions !== undefined) user.permissions = permissions;
+      await user.save();
+    }
+    res.json(sub);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put("/api/subscribers/:id/permissions", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { permissions = [] } = req.body;
+    const sub = await Subscriber.findByIdAndUpdate(req.params.id, { permissions }, { new: true });
+    if (!sub) return res.status(404).json({ error: "Not found" });
+    let user = await User.findOne({ email: sub.email });
+    if (user && user.role !== "admin") {
+      user.permissions = permissions;
+      await user.save();
+    }
+    res.json(sub);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete("/api/subscribers/:id", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const sub = await Subscriber.findById(req.params.id);
+    if (!sub) return res.status(404).json({ error: "Not found" });
+    await User.deleteOne({ email: sub.email, role: { $ne: "admin" } });
+    await Subscriber.findByIdAndDelete(req.params.id);
+    res.json({ message: "تم حذف المشترك بنجاح" });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ─── Email Config Routes ────────────────────────────────────────────────────
 app.get("/api/email-config/status", authMiddleware, adminMiddleware, (req, res) => {
   res.json({ configured: !!process.env.SMTP_PASS });
