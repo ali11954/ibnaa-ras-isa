@@ -143,7 +143,7 @@ function Reports() {
       else w.document.write(`<td>${i+1}</td><td>${item.headName||''}</td><td>${item.familyNumber||''}</td><td>${item.village||''}</td><td>${item.maleCount||0}</td><td>${item.femaleCount||0}</td><td>${(item.averageIncome||0).toLocaleString('ar-SA')}</td>`);
       w.document.write('</tr>');
     });
-    w.document.write('</tbody></table><div class="ft">ابناء راس عيسى — المصمم غيث</div></body></html>');
+    w.document.write('</tbody></table><div class="ft">ابناء راس عيسى — الغيث لتصميم التطبيقات والأنظمة</div></body></html>');
     w.document.close();
     setTimeout(() => w.print(), 500);
   };

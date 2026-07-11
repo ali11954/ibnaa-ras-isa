@@ -36,11 +36,13 @@ const LIST_KEYS = {
   maritalStatus: 'الحالة الاجتماعية',
   educationLevel: 'المستوى التعليمي',
   healthStatus: 'الحالة الصحية',
+  educationStatus: 'الحالة التعليمية',
+  otherIncomeSources: 'مصادر دخل أخرى',
 };
 
-const DROPDOWN_FIELDS = ['governorate', 'directorate', 'isolation', 'village', 'neighborhood', 'mainIncomeSource', 'financialStatus', 'housingType', 'housingCondition'];
+const DROPDOWN_FIELDS = ['governorate', 'directorate', 'isolation', 'village', 'neighborhood', 'mainIncomeSource', 'otherIncomeSources', 'financialStatus', 'housingType', 'housingCondition'];
 
-const MEMBER_DROPDOWN_FIELDS = ['relationship', 'maritalStatus', 'educationLevel', 'healthStatus'];
+const MEMBER_DROPDOWN_FIELDS = ['relationship', 'maritalStatus', 'educationLevel', 'educationStatus', 'healthStatus'];
 
 export default function CensusForm({ onSave, onCancel, editData }) {
   const { token, isAdmin } = useAuth();
@@ -241,7 +243,7 @@ export default function CensusForm({ onSave, onCancel, editData }) {
             {fg('عدد المتوفين', <input type="number" style={inputStyle} value={family.deceasedCount} onChange={e => setFamily({ ...family, deceasedCount: parseInt(e.target.value) || 0 })} />)}
             {fg('تاريخ السكن', <input style={inputStyle} value={family.residenceDate} onChange={e => setFamily({ ...family, residenceDate: e.target.value })} />)}
             {renderDropdown('مصدر الدخل الرئيسي *', 'mainIncomeSource', family.mainIncomeSource, v => setFamily({ ...family, mainIncomeSource: v }))}
-            {fg('مصادر دخل أخرى', <input style={inputStyle} value={family.otherIncomeSources} onChange={e => setFamily({ ...family, otherIncomeSources: e.target.value })} />)}
+            {renderDropdown('مصادر دخل أخرى', 'otherIncomeSources', family.otherIncomeSources, v => setFamily({ ...family, otherIncomeSources: v }))}
             {fg('متوسط الدخل (ر.ي) *', <input type="number" style={inputStyle} value={family.averageIncome} onChange={e => setFamily({ ...family, averageIncome: parseInt(e.target.value) || 0 })} />)}
             {renderDropdown('الحالة المادية *', 'financialStatus', family.financialStatus, v => setFamily({ ...family, financialStatus: v }))}
             <div className="form-group" style={{ gridColumn: 'span 3' }}>
@@ -272,7 +274,7 @@ export default function CensusForm({ onSave, onCancel, editData }) {
                   <div className="form-group"><label style={labelStyle}>اسم الأب/الأم</label><input style={inputStyle} value={m.parentName} onChange={e => updateMember(i, 'parentName', e.target.value)} /></div>
                   {renderDropdown('الحالة الاجتماعية', 'maritalStatus', m.maritalStatus, v => updateMember(i, 'maritalStatus', v))}
                   {renderDropdown('المستوى التعليمي', 'educationLevel', m.educationLevel, v => updateMember(i, 'educationLevel', v))}
-                  <div className="form-group"><label style={labelStyle}>الحالة التعليمية</label><input style={inputStyle} value={m.educationStatus} onChange={e => updateMember(i, 'educationStatus', e.target.value)} /></div>
+                  {renderDropdown('الحالة التعليمية', 'educationStatus', m.educationStatus, v => updateMember(i, 'educationStatus', v))}
                   <div className="form-group"><label style={labelStyle}>العمل</label><input style={inputStyle} value={m.work} onChange={e => updateMember(i, 'work', e.target.value)} /></div>
                   <div className="form-group"><label style={labelStyle}>متوسط الدخل</label><input type="number" style={inputStyle} value={m.memberIncome} onChange={e => updateMember(i, 'memberIncome', parseInt(e.target.value) || 0)} /></div>
                   {renderDropdown('الحالة الصحية', 'healthStatus', m.healthStatus, v => updateMember(i, 'healthStatus', v))}
