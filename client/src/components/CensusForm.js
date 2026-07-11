@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 
 const emptyFamily = {
-  formNumber: '', familyNumber: '', visitDate: '', researcherName: '',
+  formNumber: '', familyNumber: '',
+  visitDate: new Date().toISOString().split('T')[0],
   governorate: '', directorate: '', isolation: '', village: '', neighborhood: '', street: '', houseNumber: '',
-  headName: '', phone: '', currentFamilySize: 0, previousFamilySize: 0,
-  maleCount: 0, femaleCount: 0, marriedCount: 0, deceasedCount: 0, migrantCount: 0,
-  migrationDestination: '', residenceDate: '', previousResidence: '',
-  previousGovernorate: '', previousDirectorate: '', previousIsolation: '', previousVillage: '',
+  headName: '', phone: '', currentFamilySize: 0,
+  maleCount: 0, femaleCount: 0, marriedCount: 0, deceasedCount: 0,
+  residenceDate: '',
   housingType: '', housingCondition: '', mainIncomeSource: '', otherIncomeSources: '',
   averageIncome: 0, financialStatus: '', notes: '',
 };
@@ -19,29 +19,107 @@ const emptyMigration = { migName: '', departureDate: '', migDestination: '', mig
 const emptyDisease = { disName: '', chronicDisease: '', injuryType: '', disabilityType: '', injuryDate: '', needsTreatment: '', disNotes: '' };
 
 const inputStyle = { width: '100%', padding: '0.5rem 0.8rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', color: 'white', fontFamily: 'inherit', fontSize: '0.85rem' };
+const readOnlyStyle = { ...inputStyle, background: 'rgba(99,102,241,0.1)', cursor: 'not-allowed' };
 const labelStyle = { fontSize: '0.8rem', fontWeight: '600', marginBottom: '0.3rem', display: 'block', color: 'var(--gray-light)' };
 
+const LIST_KEYS = {
+  governorate: 'المحافظة',
+  directorate: 'المديرية',
+  isolation: 'العزلة',
+  village: 'القرية',
+  neighborhood: 'الحي',
+  mainIncomeSource: 'مصدر الدخل',
+  financialStatus: 'الحالة المادية',
+  housingType: 'نوع السكن',
+  housingCondition: 'حالة السكن',
+  relationship: 'صلة القرابة',
+  maritalStatus: 'الحالة الاجتماعية',
+  educationLevel: 'المستوى التعليمي',
+  healthStatus: 'الحالة الصحية',
+};
+
+const DROPDOWN_FIELDS = ['governorate', 'directorate', 'isolation', 'village', 'neighborhood', 'mainIncomeSource', 'financialStatus', 'housingType', 'housingCondition'];
+
+const MEMBER_DROPDOWN_FIELDS = ['relationship', 'maritalStatus', 'educationLevel', 'healthStatus'];
+
 export default function CensusForm({ onSave, onCancel, editData }) {
-  const { token } = useAuth();
+  const { token, isAdmin } = useAuth();
   const [tab, setTab] = useState('family');
   const [saved, setSaved] = useState(!!editData);
   const [censusId, setCensusId] = useState(editData?._id || null);
-  const [family, setFamily] = useState(editData || { ...emptyFamily });
+  const [family, setFamily] = useState({
+    ...emptyFamily,
+    ...editData,
+    visitDate: editData?.visitDate || new Date().toISOString().split('T')[0],
+  });
   const [members, setMembers] = useState(editData?.members || []);
   const [housing, setHousing] = useState(editData?.housing || { housingType: '', ownership: '', moveDate: '', rooms: 0, electricity: '', water: '', sewage: '', internet: '', gas: '', housingNotes: '' });
   const [migration, setMigration] = useState(editData?.migration || []);
   const [diseases, setDiseases] = useState(editData?.diseases || []);
   const [saving, setSaving] = useState(false);
+  const [lists, setLists] = useState({});
+  const [newOption, setNewOption] = useState({});
 
   const headers = { Authorization: `Bearer ${token}` };
 
+  useEffect(() => {
+    axios.get('/api/census-lists', { headers }).then(res => {
+      const map = {};
+      res.data.forEach(l => { map[l.key] = l.options || []; });
+      setLists(map);
+    }).catch(() => {});
+  }, [token]);
+
+  const addOptionToList = async (key, value) => {
+    if (!value || !value.trim()) return;
+    try {
+      await axios.post(`/api/census-lists/${key}/options`, { option: value.trim() }, { headers });
+      setLists(prev => ({
+        ...prev,
+        [key]: prev[key] ? (prev[key].includes(value.trim()) ? prev[key] : [...prev[key], value.trim()]) : [value.trim()],
+      }));
+      setNewOption(prev => ({ ...prev, [key]: '' }));
+      toast.success(`تمت إضافة "${value.trim()}"`);
+    } catch (err) {
+      toast.error('خطأ في الإضافة');
+    }
+  };
+
+  const renderDropdown = (label, fieldKey, value, onChange, isMember = false) => {
+    const options = lists[fieldKey] || [];
+    return (
+      <div className="form-group" style={{ marginBottom: '0.6rem' }}>
+        <label style={labelStyle}>{label}</label>
+        <div style={{ display: 'flex', gap: '0.3rem' }}>
+          <select style={{ ...inputStyle, flex: 1 }} value={value || ''} onChange={e => onChange(e.target.value)}>
+            <option value="">اختر...</option>
+            {options.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        </div>
+        {isAdmin && (
+          <div style={{ display: 'flex', gap: '0.2rem', marginTop: '0.3rem' }}>
+            <input
+              type="text"
+              placeholder={`إضافة ${label}...`}
+              value={newOption[fieldKey] || ''}
+              onChange={e => setNewOption(prev => ({ ...prev, [fieldKey]: e.target.value }))}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addOptionToList(fieldKey, newOption[fieldKey]); } }}
+              style={{ ...inputStyle, flex: 1, fontSize: '0.75rem', padding: '0.3rem 0.5rem' }}
+            />
+            <button type="button" onClick={() => addOptionToList(fieldKey, newOption[fieldKey])}
+              style={{ padding: '0.3rem 0.6rem', background: 'rgba(16,185,129,0.2)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '6px', color: '#10b981', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600' }}>+</button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const saveFamily = async () => {
     if (!family.headName) { toast.error('أدخل اسم رب الأسرة'); return; }
-    if (!family.visitDate) { toast.error('أدخل تاريخ الزيارة'); return; }
-    if (!family.governorate || !family.directorate) { toast.error('أدخل المحافظة والمديرية'); return; }
+    if (!family.governorate) { toast.error('اختر المحافظة'); return; }
     if (!family.phone) { toast.error('أدخل رقم الهاتف'); return; }
     if (!family.currentFamilySize) { toast.error('أدخل عدد الأفراد الحالي'); return; }
-    if (!family.mainIncomeSource) { toast.error('أدخل مصدر الدخل الرئيسي'); return; }
+    if (!family.mainIncomeSource) { toast.error('اختر مصدر الدخل الرئيسي'); return; }
     if (!family.averageIncome) { toast.error('أدخل متوسط الدخل'); return; }
     if (!family.financialStatus) { toast.error('اختر الحالة المادية'); return; }
     setSaving(true);
@@ -136,7 +214,7 @@ export default function CensusForm({ onSave, onCancel, editData }) {
         {tabs.map(t => (
           <button key={t.key} onClick={() => !t.disabled && setTab(t.key)}
             style={{ padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid', borderColor: tab === t.key ? 'var(--primary)' : 'rgba(99,102,241,0.2)', background: tab === t.key ? 'rgba(99,102,241,0.2)' : 'transparent', color: t.disabled ? 'var(--gray)' : tab === t.key ? 'var(--primary-light)' : 'var(--gray-light)', cursor: t.disabled ? 'not-allowed' : 'pointer', fontSize: '0.8rem', fontFamily: 'inherit', fontWeight: '600', transition: 'all 0.2s', opacity: t.disabled ? 0.5 : 1 }}>
-            {t.icon} {t.label} {t.disabled && !t.disabled ? '🔒' : ''}
+            {t.icon} {t.label}
           </button>
         ))}
       </div>
@@ -144,39 +222,28 @@ export default function CensusForm({ onSave, onCancel, editData }) {
       <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
         {tab === 'family' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.6rem' }}>
-            {censusId && fg('رقم الاستمارة', <input style={{ ...inputStyle, background: 'rgba(99,102,241,0.1)', cursor: 'not-allowed' }} value={family.formNumber} readOnly />)}
-            {censusId && fg('رقم الأسرة', <input style={{ ...inputStyle, background: 'rgba(99,102,241,0.1)', cursor: 'not-allowed' }} value={family.familyNumber} readOnly />)}
-            {fg('تاريخ الزيارة *', <input type="date" style={inputStyle} value={family.visitDate} onChange={e => setFamily({ ...family, visitDate: e.target.value })} />)}
-            {fg('اسم الباحث', <input style={inputStyle} value={family.researcherName} onChange={e => setFamily({ ...family, researcherName: e.target.value })} />)}
-            {fg('المحافظة *', <input style={inputStyle} value={family.governorate} onChange={e => setFamily({ ...family, governorate: e.target.value })} />)}
-            {fg('المديرية *', <input style={inputStyle} value={family.directorate} onChange={e => setFamily({ ...family, directorate: e.target.value })} />)}
-            {fg('العزلة', <input style={inputStyle} value={family.isolation} onChange={e => setFamily({ ...family, isolation: e.target.value })} />)}
-            {fg('القرية', <input style={inputStyle} value={family.village} onChange={e => setFamily({ ...family, village: e.target.value })} />)}
-            {fg('الحي', <input style={inputStyle} value={family.neighborhood} onChange={e => setFamily({ ...family, neighborhood: e.target.value })} />)}
+            {censusId && fg('رقم الاستمارة', <input style={readOnlyStyle} value={family.formNumber} readOnly />)}
+            {censusId && fg('رقم الأسرة', <input style={readOnlyStyle} value={family.familyNumber} readOnly />)}
+            {fg('تاريخ الإدخال', <input style={readOnlyStyle} value={family.visitDate} readOnly />)}
+            {renderDropdown('المحافظة *', 'governorate', family.governorate, v => setFamily({ ...family, governorate: v }))}
+            {renderDropdown('المديرية *', 'directorate', family.directorate, v => setFamily({ ...family, directorate: v }))}
+            {renderDropdown('العزلة', 'isolation', family.isolation, v => setFamily({ ...family, isolation: v }))}
+            {renderDropdown('القرية', 'village', family.village, v => setFamily({ ...family, village: v }))}
+            {renderDropdown('الحي', 'neighborhood', family.neighborhood, v => setFamily({ ...family, neighborhood: v }))}
             {fg('الشارع', <input style={inputStyle} value={family.street} onChange={e => setFamily({ ...family, street: e.target.value })} />)}
             {fg('رقم المنزل', <input style={inputStyle} value={family.houseNumber} onChange={e => setFamily({ ...family, houseNumber: e.target.value })} />)}
             {fg('اسم رب الأسرة *', <input style={inputStyle} value={family.headName} onChange={e => setFamily({ ...family, headName: e.target.value })} />)}
             {fg('الهاتف *', <input type="tel" style={inputStyle} value={family.phone} onChange={e => setFamily({ ...family, phone: e.target.value })} />)}
             {fg('عدد الأسرة الحالي *', <input type="number" style={inputStyle} value={family.currentFamilySize} onChange={e => setFamily({ ...family, currentFamilySize: parseInt(e.target.value) || 0 })} />)}
-            {fg('عدد الأسرة السابق', <input type="number" style={inputStyle} value={family.previousFamilySize} onChange={e => setFamily({ ...family, previousFamilySize: parseInt(e.target.value) || 0 })} />)}
             {fg('عدد الذكور *', <input type="number" style={inputStyle} value={family.maleCount} onChange={e => setFamily({ ...family, maleCount: parseInt(e.target.value) || 0 })} />)}
             {fg('عدد الإناث *', <input type="number" style={inputStyle} value={family.femaleCount} onChange={e => setFamily({ ...family, femaleCount: parseInt(e.target.value) || 0 })} />)}
             {fg('عدد المتزوجين', <input type="number" style={inputStyle} value={family.marriedCount} onChange={e => setFamily({ ...family, marriedCount: parseInt(e.target.value) || 0 })} />)}
             {fg('عدد المتوفين', <input type="number" style={inputStyle} value={family.deceasedCount} onChange={e => setFamily({ ...family, deceasedCount: parseInt(e.target.value) || 0 })} />)}
-            {fg('عدد المهاجرين', <input type="number" style={inputStyle} value={family.migrantCount} onChange={e => setFamily({ ...family, migrantCount: parseInt(e.target.value) || 0 })} />)}
-            {fg('جهة الهجرة', <input style={inputStyle} value={family.migrationDestination} onChange={e => setFamily({ ...family, migrationDestination: e.target.value })} />)}
             {fg('تاريخ السكن', <input style={inputStyle} value={family.residenceDate} onChange={e => setFamily({ ...family, residenceDate: e.target.value })} />)}
-            {fg('مكان السكن السابق', <input style={inputStyle} value={family.previousResidence} onChange={e => setFamily({ ...family, previousResidence: e.target.value })} />)}
-            {fg('المحافظة السابقة', <input style={inputStyle} value={family.previousGovernorate} onChange={e => setFamily({ ...family, previousGovernorate: e.target.value })} />)}
-            {fg('المديرية السابقة', <input style={inputStyle} value={family.previousDirectorate} onChange={e => setFamily({ ...family, previousDirectorate: e.target.value })} />)}
-            {fg('العزلة السابقة', <input style={inputStyle} value={family.previousIsolation} onChange={e => setFamily({ ...family, previousIsolation: e.target.value })} />)}
-            {fg('القرية السابقة', <input style={inputStyle} value={family.previousVillage} onChange={e => setFamily({ ...family, previousVillage: e.target.value })} />)}
-            {fg('مصدر الدخل الرئيسي *', <input style={inputStyle} value={family.mainIncomeSource} onChange={e => setFamily({ ...family, mainIncomeSource: e.target.value })} />)}
+            {renderDropdown('مصدر الدخل الرئيسي *', 'mainIncomeSource', family.mainIncomeSource, v => setFamily({ ...family, mainIncomeSource: v }))}
             {fg('مصادر دخل أخرى', <input style={inputStyle} value={family.otherIncomeSources} onChange={e => setFamily({ ...family, otherIncomeSources: e.target.value })} />)}
             {fg('متوسط الدخل (ر.ي) *', <input type="number" style={inputStyle} value={family.averageIncome} onChange={e => setFamily({ ...family, averageIncome: parseInt(e.target.value) || 0 })} />)}
-            {fg('الحالة المادية *', <select style={inputStyle} value={family.financialStatus} onChange={e => setFamily({ ...family, financialStatus: e.target.value })}>
-              <option value="">اختر</option>{['جيد', 'متوسط', 'ضعيف', 'سيئ جداً'].map(v => <option key={v} value={v}>{v}</option>)}
-            </select>)}
+            {renderDropdown('الحالة المادية *', 'financialStatus', family.financialStatus, v => setFamily({ ...family, financialStatus: v }))}
             <div className="form-group" style={{ gridColumn: 'span 3' }}>
               {fg('ملاحظات', <textarea style={{ ...inputStyle, minHeight: '60px' }} value={family.notes} onChange={e => setFamily({ ...family, notes: e.target.value })} />)}
             </div>
@@ -201,20 +268,14 @@ export default function CensusForm({ onSave, onCancel, editData }) {
                     <option value="">اختر</option><option value="ذكر">ذكر</option><option value="أنثى">أنثى</option>
                   </select></div>
                   <div className="form-group"><label style={labelStyle}>العمر *</label><input type="number" style={inputStyle} value={m.age} onChange={e => updateMember(i, 'age', parseInt(e.target.value) || 0)} /></div>
-                  <div className="form-group"><label style={labelStyle}>صلة القرابة *</label><input style={inputStyle} value={m.relationship} onChange={e => updateMember(i, 'relationship', e.target.value)} placeholder="ابن / زوجة..." /></div>
+                  {renderDropdown('صلة القرابة *', 'relationship', m.relationship, v => updateMember(i, 'relationship', v))}
                   <div className="form-group"><label style={labelStyle}>اسم الأب/الأم</label><input style={inputStyle} value={m.parentName} onChange={e => updateMember(i, 'parentName', e.target.value)} /></div>
-                  <div className="form-group"><label style={labelStyle}>الحالة الاجتماعية</label><select style={inputStyle} value={m.maritalStatus} onChange={e => updateMember(i, 'maritalStatus', e.target.value)}>
-                    <option value="">اختر</option><option value="أعزب">أعزب</option><option value="متزوج">متزوج</option><option value="مطلق">مطلق</option><option value="أرمل">أرمل</option>
-                  </select></div>
-                  <div className="form-group"><label style={labelStyle}>المستوى التعليمي</label><select style={inputStyle} value={m.educationLevel} onChange={e => updateMember(i, 'educationLevel', e.target.value)}>
-                    <option value="">اختر</option><option value="أمي">أمي</option><option value="ابتدائي">ابتدائي</option><option value="متوسط">متوسط</option><option value="ثانوي">ثانوي</option><option value="جامعي">جامعي</option><option value="دراسات عليا">دراسات عليا</option>
-                  </select></div>
+                  {renderDropdown('الحالة الاجتماعية', 'maritalStatus', m.maritalStatus, v => updateMember(i, 'maritalStatus', v))}
+                  {renderDropdown('المستوى التعليمي', 'educationLevel', m.educationLevel, v => updateMember(i, 'educationLevel', v))}
                   <div className="form-group"><label style={labelStyle}>الحالة التعليمية</label><input style={inputStyle} value={m.educationStatus} onChange={e => updateMember(i, 'educationStatus', e.target.value)} /></div>
                   <div className="form-group"><label style={labelStyle}>العمل</label><input style={inputStyle} value={m.work} onChange={e => updateMember(i, 'work', e.target.value)} /></div>
                   <div className="form-group"><label style={labelStyle}>متوسط الدخل</label><input type="number" style={inputStyle} value={m.memberIncome} onChange={e => updateMember(i, 'memberIncome', parseInt(e.target.value) || 0)} /></div>
-                  <div className="form-group"><label style={labelStyle}>الحالة الصحية</label><select style={inputStyle} value={m.healthStatus} onChange={e => updateMember(i, 'healthStatus', e.target.value)}>
-                    <option value="">اختر</option><option value="سليم">سليم</option><option value="مريض">مريض</option><option value="إعاقة">إعاقة</option>
-                  </select></div>
+                  {renderDropdown('الحالة الصحية', 'healthStatus', m.healthStatus, v => updateMember(i, 'healthStatus', v))}
                   <div className="form-group"><label style={labelStyle}>مرض مزمن</label><input style={inputStyle} value={m.chronicDisease} onChange={e => updateMember(i, 'chronicDisease', e.target.value)} /></div>
                   <div className="form-group"><label style={labelStyle}>إصابة</label><input style={inputStyle} value={m.injury} onChange={e => updateMember(i, 'injury', e.target.value)} /></div>
                   <div className="form-group"><label style={labelStyle}>إعاقة</label><input style={inputStyle} value={m.disability} onChange={e => updateMember(i, 'disability', e.target.value)} /></div>
@@ -228,9 +289,7 @@ export default function CensusForm({ onSave, onCancel, editData }) {
 
         {tab === 'housing' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.6rem' }}>
-            {fg('نوع السكن', <select style={inputStyle} value={housing.housingType} onChange={e => setHousing({ ...housing, housingType: e.target.value })}>
-              <option value="">اختر</option>{['فيلا', 'شقة', 'غرفة', 'كوخ', 'مخيم', 'أخرى'].map(v => <option key={v} value={v}>{v}</option>)}
-            </select>)}
+            {renderDropdown('نوع السكن', 'housingType', housing.housingType, v => setHousing({ ...housing, housingType: v }))}
             {fg('ملكية / إيجار', <select style={inputStyle} value={housing.ownership} onChange={e => setHousing({ ...housing, ownership: e.target.value })}>
               <option value="">اختر</option>{['ملك', 'إيجار', 'استئجار', 'مجاني'].map(v => <option key={v} value={v}>{v}</option>)}
             </select>)}

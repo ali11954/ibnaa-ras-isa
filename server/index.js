@@ -177,6 +177,13 @@ const censusSchema = new mongoose.Schema({
 }, { timestamps: true });
 const Census = mongoose.model("Census", censusSchema);
 
+const censusListSchema = new mongoose.Schema({
+  key: { type: String, required: true, index: true },
+  label: String,
+  options: [String],
+}, { timestamps: true });
+const CensusList = mongoose.model("CensusList", censusListSchema);
+
 const User = mongoose.model("User", userSchema);
 const Feedback = mongoose.model("Feedback", feedbackSchema);
 const Subscriber = mongoose.model("Subscriber", subscriberSchema);
@@ -1139,6 +1146,80 @@ app.delete("/api/census/:id", authMiddleware, subscriberMiddleware, async (req, 
   try {
     await Census.findByIdAndDelete(req.params.id);
     res.json({ message: "Deleted" });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Census Lists (dropdown options managed by admin) ────────────────────────
+app.get("/api/census-lists", authMiddleware, async (req, res) => {
+  try { res.json(await CensusList.find().sort({ key: 1 })); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get("/api/census-lists/:key", async (req, res) => {
+  try {
+    const list = await CensusList.findOne({ key: req.params.key });
+    res.json(list ? list.options : []);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post("/api/census-lists", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { key, label, options = [] } = req.body;
+    if (!key) return res.status(400).json({ error: "key مطلوب" });
+    const existing = await CensusList.findOne({ key });
+    if (existing) {
+      existing.label = label || existing.label;
+      existing.options = options.length > 0 ? options : existing.options;
+      await existing.save();
+      return res.json(existing);
+    }
+    const list = await CensusList.create({ key, label, options });
+    res.json(list);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put("/api/census-lists/:key", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { options, label } = req.body;
+    const update = {};
+    if (options !== undefined) update.options = options;
+    if (label !== undefined) update.label = label;
+    const list = await CensusList.findOneAndUpdate({ key: req.params.key }, update, { new: true, upsert: true });
+    res.json(list);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post("/api/census-lists/:key/options", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { option } = req.body;
+    if (!option) return res.status(400).json({ error: "الخيار مطلوب" });
+    let list = await CensusList.findOne({ key: req.params.key });
+    if (!list) {
+      list = await CensusList.create({ key: req.params.key, label: req.params.key, options: [option] });
+    } else {
+      if (!list.options.includes(option)) {
+        list.options.push(option);
+        await list.save();
+      }
+    }
+    res.json(list);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete("/api/census-lists/:key/options/:option", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const list = await CensusList.findOne({ key: req.params.key });
+    if (!list) return res.status(404).json({ error: "Not found" });
+    list.options = list.options.filter(o => o !== decodeURIComponent(req.params.option));
+    await list.save();
+    res.json(list);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete("/api/census-lists/:key", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    await CensusList.findOneAndDelete({ key: req.params.key });
+    res.json({ message: "تم الحذف" });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

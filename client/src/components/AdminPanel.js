@@ -31,6 +31,10 @@ const AdminPanel = () => {
   const [editingSub, setEditingSub] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', email: '', phone: '', reason: '' });
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [censusLists, setCensusLists] = useState([]);
+  const [newListKey, setNewListKey] = useState('');
+  const [newListLabel, setNewListLabel] = useState('');
+  const [newOptionText, setNewOptionText] = useState({});
 
   const [editingUser, setEditingUser] = useState(null);
   const [editUserForm, setEditUserForm] = useState({ name: '', email: '', phone: '' });
@@ -58,6 +62,10 @@ const AdminPanel = () => {
       try {
         const eRes = await axios.get('/api/email-config/status', { headers });
         setEmailStatus(eRes.data);
+      } catch {}
+      try {
+        const cRes = await axios.get('/api/census-lists', { headers });
+        setCensusLists(cRes.data);
       } catch {}
       const pendingFb = fRes.data.filter(f => f.status === 'pending');
       if (pendingFb.length > 0) setTab('feedback');
@@ -194,6 +202,43 @@ const AdminPanel = () => {
     } catch (err) { toast.error('خطأ في الحفظ'); }
   };
 
+  const addCensusList = async () => {
+    if (!newListKey.trim() || !newListLabel.trim()) { toast.error('أدخل المفتاح والاسم'); return; }
+    try {
+      await axios.post('/api/census-lists', { key: newListKey.trim(), label: newListLabel.trim(), options: [] }, { headers });
+      toast.success('تمت إضافة القائمة');
+      setNewListKey(''); setNewListLabel('');
+      loadData();
+    } catch (err) { toast.error('خطأ: ' + (err.response?.data?.error || err.message)); }
+  };
+
+  const addOptionToList = async (key) => {
+    const text = (newOptionText[key] || '').trim();
+    if (!text) return;
+    try {
+      await axios.post(`/api/census-lists/${key}/options`, { option: text }, { headers });
+      toast.success(`تمت إضافة "${text}"`);
+      setNewOptionText(prev => ({ ...prev, [key]: '' }));
+      loadData();
+    } catch (err) { toast.error('خطأ'); }
+  };
+
+  const removeOptionFromList = async (key, option) => {
+    try {
+      await axios.delete(`/api/census-lists/${key}/options/${encodeURIComponent(option)}`, { headers });
+      toast.success(`تم حذف "${option}"`);
+      loadData();
+    } catch (err) { toast.error('خطأ'); }
+  };
+
+  const deleteCensusList = async (key) => {
+    try {
+      await axios.delete(`/api/census-lists/${key}`, { headers });
+      toast.success('تم حذف القائمة');
+      loadData();
+    } catch (err) { toast.error('خطأ'); }
+  };
+
   if (!isAdmin) return null;
 
   const pendingUsers = users.filter(u => !u.approved && u.role !== 'admin');
@@ -292,6 +337,9 @@ const AdminPanel = () => {
         </button>
         <button className={`admin-tab ${tab === 'subscribers' ? 'active' : ''}`} onClick={() => setTab('subscribers')}>
           المشتركون ({pendingSubs.length} بانتظار)
+        </button>
+        <button className={`admin-tab ${tab === 'censusLists' ? 'active' : ''}`} onClick={() => setTab('censusLists')}>
+          قوائم التعداد ({censusLists.length})
         </button>
         <button className={`admin-tab ${tab === 'feedback' ? 'active' : ''}`} onClick={() => setTab('feedback')}>
           الملاحظات ({feedbacks.length})
@@ -443,6 +491,51 @@ const AdminPanel = () => {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {tab === 'censusLists' && (
+        <div className="admin-content">
+          <h3>قوائم التعداد القابلة للتعديل</h3>
+          <p style={{ fontSize: '0.8rem', color: 'var(--gray-light)', marginBottom: '1rem' }}>هذه القوائم تظهر في استمارات التعداد كقوائم منسدلة. المدير يمكنه إضافة خيارات جديدة أو حذفها.</p>
+          
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', alignItems: 'center' }}>
+            <input type="text" placeholder="المفتاح (مثل: governorate)" value={newListKey} onChange={e => setNewListKey(e.target.value)}
+              style={{ padding: '0.5rem 0.8rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', color: 'white', fontFamily: 'inherit', fontSize: '0.85rem', flex: 1 }} />
+            <input type="text" placeholder="الاسم (مثل: المحافظة)" value={newListLabel} onChange={e => setNewListLabel(e.target.value)}
+              style={{ padding: '0.5rem 0.8rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', color: 'white', fontFamily: 'inherit', fontSize: '0.85rem', flex: 1 }} />
+            <button className="btn-approve" onClick={addCensusList}>+ إضافة قائمة</button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1rem' }}>
+            {censusLists.map(list => (
+              <div key={list._id} style={{ background: 'rgba(30,41,59,0.5)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '12px', padding: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
+                  <div>
+                    <strong style={{ fontSize: '0.95rem' }}>{list.label}</strong>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--gray)', marginRight: '0.5rem' }}>({list.key}) — {list.options.length} خيار</span>
+                  </div>
+                  <button className="btn-reject" style={{ fontSize: '0.7rem', padding: '0.2rem 0.6rem', background: '#ef4444' }} onClick={() => deleteCensusList(list.key)}>🗑️ حذف</button>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginBottom: '0.5rem' }}>
+                  {list.options.map(opt => (
+                    <span key={opt} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '6px', padding: '0.2rem 0.5rem', fontSize: '0.78rem', color: 'var(--gray-light)' }}>
+                      {opt}
+                      <button onClick={() => removeOptionFromList(list.key, opt)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem', padding: 0, lineHeight: 1 }}>✕</button>
+                    </span>
+                  ))}
+                  {list.options.length === 0 && <span style={{ fontSize: '0.78rem', color: 'var(--gray)' }}>لا توجد خيارات بعد</span>}
+                </div>
+                <div style={{ display: 'flex', gap: '0.3rem' }}>
+                  <input type="text" placeholder={`إضافة خيار لـ ${list.label}...`} value={newOptionText[list.key] || ''}
+                    onChange={e => setNewOptionText(prev => ({ ...prev, [list.key]: e.target.value }))}
+                    onKeyDown={e => { if (e.key === 'Enter') addOptionToList(list.key); }}
+                    style={{ flex: 1, padding: '0.3rem 0.6rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '6px', color: 'white', fontFamily: 'inherit', fontSize: '0.8rem' }} />
+                  <button onClick={() => addOptionToList(list.key)} style={{ padding: '0.3rem 0.6rem', background: 'rgba(16,185,129,0.2)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '6px', color: '#10b981', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}>+</button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
