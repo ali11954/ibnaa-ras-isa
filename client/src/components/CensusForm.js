@@ -41,7 +41,6 @@ export default function CensusForm({ onSave, onCancel, editData }) {
     if (!family.governorate || !family.directorate) { toast.error('أدخل المحافظة والمديرية'); return; }
     if (!family.phone) { toast.error('أدخل رقم الهاتف'); return; }
     if (!family.currentFamilySize) { toast.error('أدخل عدد الأفراد الحالي'); return; }
-    if (!family.housingType) { toast.error('اختر نوع السكن'); return; }
     if (!family.mainIncomeSource) { toast.error('أدخل مصدر الدخل الرئيسي'); return; }
     if (!family.averageIncome) { toast.error('أدخل متوسط الدخل'); return; }
     if (!family.financialStatus) { toast.error('اختر الحالة المادية'); return; }
@@ -172,12 +171,6 @@ export default function CensusForm({ onSave, onCancel, editData }) {
             {fg('المديرية السابقة', <input style={inputStyle} value={family.previousDirectorate} onChange={e => setFamily({ ...family, previousDirectorate: e.target.value })} />)}
             {fg('العزلة السابقة', <input style={inputStyle} value={family.previousIsolation} onChange={e => setFamily({ ...family, previousIsolation: e.target.value })} />)}
             {fg('القرية السابقة', <input style={inputStyle} value={family.previousVillage} onChange={e => setFamily({ ...family, previousVillage: e.target.value })} />)}
-            {fg('نوع السكن *', <select style={inputStyle} value={family.housingType} onChange={e => setFamily({ ...family, housingType: e.target.value })}>
-              <option value="">اختر</option>{['فيلا', 'شقة', 'غرفة', 'كوخ', 'مخيم', 'أخرى'].map(v => <option key={v} value={v}>{v}</option>)}
-            </select>)}
-            {fg('حالة السكن', <select style={inputStyle} value={family.housingCondition} onChange={e => setFamily({ ...family, housingCondition: e.target.value })}>
-              <option value="">اختر</option>{['جيد', 'متوسط', 'سيئ', 'مدمر'].map(v => <option key={v} value={v}>{v}</option>)}
-            </select>)}
             {fg('مصدر الدخل الرئيسي *', <input style={inputStyle} value={family.mainIncomeSource} onChange={e => setFamily({ ...family, mainIncomeSource: e.target.value })} />)}
             {fg('مصادر دخل أخرى', <input style={inputStyle} value={family.otherIncomeSources} onChange={e => setFamily({ ...family, otherIncomeSources: e.target.value })} />)}
             {fg('متوسط الدخل (ر.ي) *', <input type="number" style={inputStyle} value={family.averageIncome} onChange={e => setFamily({ ...family, averageIncome: parseInt(e.target.value) || 0 })} />)}
