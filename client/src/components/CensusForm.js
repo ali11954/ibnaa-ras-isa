@@ -127,7 +127,7 @@ export default function CensusForm({ onSave, onCancel, editData }) {
     setSaving(true);
     try {
       if (censusId) {
-        await axios.put(`/api/census/${censusId}`, family, { headers });
+        await axios.put(`/api/census/${censusId}`, { ...family, housing }, { headers });
       } else {
         const res = await axios.post('/api/census', { ...family, members, housing, migration, diseases }, { headers });
         setCensusId(res.data._id);
