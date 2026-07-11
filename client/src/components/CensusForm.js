@@ -28,7 +28,7 @@ export default function CensusForm({ onSave, onCancel, editData }) {
   const [censusId, setCensusId] = useState(editData?._id || null);
   const [family, setFamily] = useState(editData || { ...emptyFamily });
   const [members, setMembers] = useState(editData?.members || []);
-  const [housing, setHousing] = useState(editData?.housing || { type: '', ownership: '', moveDate: '', rooms: 0, electricity: '', water: '', sewage: '', internet: '', gas: '', housingNotes: '' });
+  const [housing, setHousing] = useState(editData?.housing || { housingType: '', ownership: '', moveDate: '', rooms: 0, electricity: '', water: '', sewage: '', internet: '', gas: '', housingNotes: '' });
   const [migration, setMigration] = useState(editData?.migration || []);
   const [diseases, setDiseases] = useState(editData?.diseases || []);
   const [saving, setSaving] = useState(false);
@@ -228,7 +228,7 @@ export default function CensusForm({ onSave, onCancel, editData }) {
 
         {tab === 'housing' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.6rem' }}>
-            {fg('نوع السكن', <select style={inputStyle} value={housing.type} onChange={e => setHousing({ ...housing, type: e.target.value })}>
+            {fg('نوع السكن', <select style={inputStyle} value={housing.housingType} onChange={e => setHousing({ ...housing, housingType: e.target.value })}>
               <option value="">اختر</option>{['فيلا', 'شقة', 'غرفة', 'كوخ', 'مخيم', 'أخرى'].map(v => <option key={v} value={v}>{v}</option>)}
             </select>)}
             {fg('ملكية / إيجار', <select style={inputStyle} value={housing.ownership} onChange={e => setHousing({ ...housing, ownership: e.target.value })}>

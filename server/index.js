@@ -140,7 +140,7 @@ const censusSchema = new mongoose.Schema({
     memberNotes: String,
   }],
   housing: {
-    type: String,
+    housingType: String,
     ownership: String,
     moveDate: String,
     rooms: Number,
@@ -415,7 +415,7 @@ async function seedCensusData() {
           { seq: 7, name: 'يوسف احمد', gender: 'ذكر', age: 12, relationship: 'ابن', parentName: 'احمد محمد علي', maritalStatus: 'أعزب', educationLevel: 'ابتدائي', healthStatus: 'مريض', chronicDisease: 'ربو' },
           { seq: 8, name: 'خديجة احمد', gender: 'أنثى', age: 8, relationship: 'ابنة', parentName: 'احمد محمد علي', maritalStatus: 'أعزب', educationLevel: 'ابتدائي', healthStatus: 'سليم' },
         ],
-        housing: { type: 'شقة', ownership: 'إيجار', moveDate: '2005', rooms: 3, electricity: 'نعم', water: 'نعم', sewage: 'نعم', internet: 'لا', gas: 'لا', housingNotes: 'شقة مستأجرة - 3 غرف وصالة ومطبخ' },
+        housing: { housingType: 'شقة', ownership: 'إيجار', moveDate: '2005', rooms: 3, electricity: 'نعم', water: 'نعم', sewage: 'نعم', internet: 'لا', gas: 'لا', housingNotes: 'شقة مستأجرة - 3 غرف وصالة ومطبخ' },
         migration: [{ migName: 'عبدالرحمن احمد', departureDate: '2020', migDestination: 'الرياض', migReason: 'العمل', insideYemen: 'خارج اليمن', country: 'السعودية' }],
         diseases: [{ disName: 'احمد محمد علي', chronicDisease: 'ضغط الدم', needsTreatment: 'نعم' }, { disName: 'يوسف احمد', chronicDisease: 'ربو', needsTreatment: 'نعم' }],
       },
@@ -434,7 +434,7 @@ async function seedCensusData() {
           { seq: 5, name: 'مها صالح', gender: 'أنثى', age: 12, relationship: 'ابنة', parentName: 'صالح عبدالرحمن', maritalStatus: 'أعزب', educationLevel: 'ابتدائي', healthStatus: 'مريض', chronicDisease: 'حساسية' },
           { seq: 6, name: 'يوسف صالح', gender: 'ذكر', age: 5, relationship: 'ابن', parentName: 'صالح عبدالرحمن', maritalStatus: 'أعزب', educationLevel: 'أمي', healthStatus: 'سليم' },
         ],
-        housing: { type: 'غرفة', ownership: 'إيجار', moveDate: '2010', rooms: 2, electricity: 'نعم', water: 'نعم', sewage: 'لا', internet: 'لا', gas: 'لا', housingNotes: 'غرفة واحدة مع حمام -CONDITION سيئ' },
+        housing: { housingType: 'غرفة', ownership: 'إيجار', moveDate: '2010', rooms: 2, electricity: 'نعم', water: 'نعم', sewage: 'لا', internet: 'لا', gas: 'لا', housingNotes: 'غرفة واحدة مع حمام' },
         migration: [{ migName: 'احمد صالح', departureDate: '2022', migDestination: 'عدن', migReason: 'العمل', insideYemen: 'داخل اليمن', country: 'اليمن' }],
         diseases: [{ disName: 'مها صالح', chronicDisease: 'حساسية جلدية', needsTreatment: 'نعم' }],
       },
@@ -459,7 +459,7 @@ async function seedCensusData() {
           { seq: 11, name: 'هبة موسى', gender: 'أنثى', age: 18, relationship: 'ابنة', parentName: 'موسى ابراهيم', maritalStatus: 'أعزب', educationLevel: 'ثانوي', healthStatus: 'سليم' },
           { seq: 12, name: 'خالد موسى', gender: 'ذكر', age: 15, relationship: 'ابن', parentName: 'موسى ابراهيم', maritalStatus: 'أعزب', educationLevel: 'متوسط', healthStatus: 'سليم' },
         ],
-        housing: { type: 'فيلا', ownership: 'ملك', moveDate: '1995', rooms: 8, electricity: 'نعم', water: 'نعم', sewage: 'نعم', internet: 'نعم', gas: 'نعم', housingNotes: 'فيلا كبيرة - 8 غرف و3 حمامات ومطبخ كبير وصالة' },
+        housing: { housingType: 'فيلا', ownership: 'ملك', moveDate: '1995', rooms: 8, electricity: 'نعم', water: 'نعم', sewage: 'نعم', internet: 'نعم', gas: 'نعم', housingNotes: 'فيلا كبيرة - 8 غرف و3 حمامات ومطبخ كبير وصالة' },
         migration: [{ migName: 'يوسف موسى', departureDate: '2015', migDestination: 'القاهرة', migReason: 'الدراسة', insideYemen: 'خارج اليمن', country: 'مصر' }],
         diseases: [{ disName: 'موسى ابراهيم', chronicDisease: 'السكري', needsTreatment: 'نعم' }, { disName: 'khadija موسى', chronicDisease: 'ضغط الدم', needsTreatment: 'نعم' }],
       },
@@ -1110,22 +1110,29 @@ async function start() {
     let adminExists = await User.findOne({ username: ADMIN_USER });
     if (!adminExists) {
       const token = crypto.randomBytes(32).toString("hex");
-      adminExists = await User.create({
-        username: ADMIN_USER,
-        password: hashPassword(ADMIN_PASS),
-        role: "admin",
-        name: "Admin",
-        email: ADMIN_EMAIL,
-        approved: true,
-        verified: true,
-        token,
-      });
-      console.log("Admin user created (admin / admin123)");
-    } else {
+      try {
+        adminExists = await User.create({
+          username: ADMIN_USER,
+          password: hashPassword(ADMIN_PASS),
+          role: "admin",
+          name: "Admin",
+          email: ADMIN_EMAIL,
+          approved: true,
+          verified: true,
+          token,
+        });
+        console.log("Admin user created (admin / admin123)");
+      } catch (e) {
+        if (e.code === 11000) {
+          adminExists = await User.findOne({ username: ADMIN_USER });
+          console.log("Admin already exists, using existing account");
+        } else throw e;
+      }
+    }
+    if (adminExists) {
       const updates = {};
       if (adminExists.role !== "admin") updates.role = "admin";
       if (!adminExists.approved) updates.approved = true;
-      if (adminExists.password !== hashPassword(ADMIN_PASS)) updates.password = hashPassword(ADMIN_PASS);
       if (Object.keys(updates).length > 0) {
         await User.findByIdAndUpdate(adminExists._id, { $set: updates });
         console.log("Admin account restored:", Object.keys(updates).join(", "));
