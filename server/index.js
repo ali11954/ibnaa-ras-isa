@@ -1104,12 +1104,15 @@ async function start() {
     await seedExcelToMongo();
     await seedCensusData();
 
-    const adminExists = await User.findOne({ role: "admin" });
+    const ADMIN_USER = "admin";
+    const ADMIN_PASS = "admin123";
+
+    let adminExists = await User.findOne({ username: ADMIN_USER });
     if (!adminExists) {
       const token = crypto.randomBytes(32).toString("hex");
-      await User.create({
-        username: "admin",
-        password: hashPassword("admin123"),
+      adminExists = await User.create({
+        username: ADMIN_USER,
+        password: hashPassword(ADMIN_PASS),
         role: "admin",
         name: "Admin",
         email: ADMIN_EMAIL,
@@ -1119,14 +1122,13 @@ async function start() {
       });
       console.log("Admin user created (admin / admin123)");
     } else {
-      if (adminExists.role !== "admin") {
-        adminExists.role = "admin";
-        await adminExists.save();
-        console.log("Fixed admin role back to admin");
-      }
-      if (!adminExists.approved) {
-        adminExists.approved = true;
-        await adminExists.save();
+      const updates = {};
+      if (adminExists.role !== "admin") updates.role = "admin";
+      if (!adminExists.approved) updates.approved = true;
+      if (adminExists.password !== hashPassword(ADMIN_PASS)) updates.password = hashPassword(ADMIN_PASS);
+      if (Object.keys(updates).length > 0) {
+        await User.findByIdAndUpdate(adminExists._id, { $set: updates });
+        console.log("Admin account restored:", Object.keys(updates).join(", "));
       }
     }
 
