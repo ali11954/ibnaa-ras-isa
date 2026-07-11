@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
@@ -7,7 +7,7 @@ const COLORS = ['#6366f1', '#ec4899', '#06b6d4', '#10b981', '#f59e0b', '#8b5cf6'
 
 function Reports() {
   const { token, isAdmin, hasPermission } = useAuth();
-  const [reportType, setReportType] = useState('workers');
+  const [reportType, setReportType] = useState('');
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({ search: '', region: '', profession: '', team: '' });
@@ -18,50 +18,68 @@ function Reports() {
   const canWorkers = isAdmin || hasPermission('workers');
   const canFamilies = isAdmin || hasPermission('families');
   const canCensus = isAdmin || hasPermission('citizens');
+  const locked = !canWorkers && !canFamilies && !canCensus;
 
   useEffect(() => {
-    if (!canWorkers && !canFamilies && !canCensus) return;
-    if (!canWorkers && reportType === 'workers') {
-      if (canFamilies) setReportType('families');
+    if (locked) return;
+    if (!reportType) {
+      if (canWorkers) setReportType('workers');
+      else if (canFamilies) setReportType('families');
       else if (canCensus) setReportType('census');
     }
-  }, [canWorkers, canFamilies, canCensus]);
+  }, [locked, canWorkers, canFamilies, canCensus, reportType]);
 
-  const fetchData = useCallback(async () => {
+  useEffect(() => {
+    if (!reportType || locked) return;
+    let cancelled = false;
     setLoading(true);
-    try {
-      if (reportType === 'workers') {
-        const [wRes, sRes] = await Promise.all([
-          axios.get('/api/workers?limit=9999', { headers }),
-          axios.get('/api/stats', { headers }),
-        ]);
-        setData(wRes.data.workers || wRes.data || []);
-        setSummary(sRes.data);
-      } else if (reportType === 'families') {
-        const [fRes, sRes] = await Promise.all([
-          axios.get('/api/families?limit=9999', { headers }),
-          axios.get('/api/families/summary', { headers }),
-        ]);
-        setData(fRes.data.families || fRes.data || []);
-        setSummary(sRes.data);
-      } else {
-        const [cRes, sRes] = await Promise.all([
-          axios.get('/api/census?limit=9999', { headers }),
-          axios.get('/api/census/summary', { headers }),
-        ]);
-        setData(cRes.data.data || cRes.data || []);
-        setSummary(sRes.data);
+    setSummary(null);
+
+    const fetchAll = async () => {
+      try {
+        if (reportType === 'workers') {
+          const [wRes, sRes] = await Promise.all([
+            axios.get('/api/workers?limit=9999', { headers }),
+            axios.get('/api/stats', { headers }),
+          ]);
+          if (!cancelled) {
+            setData(Array.isArray(wRes.data) ? wRes.data : (wRes.data.workers || []));
+            setSummary(sRes.data || null);
+          }
+        } else if (reportType === 'families') {
+          const [fRes, sRes] = await Promise.all([
+            axios.get('/api/families?limit=9999', { headers }),
+            axios.get('/api/families/summary', { headers }),
+          ]);
+          if (!cancelled) {
+            setData(Array.isArray(fRes.data) ? fRes.data : (fRes.data.families || []));
+            setSummary(sRes.data || null);
+          }
+        } else {
+          const [cRes, sRes] = await Promise.all([
+            axios.get('/api/census?limit=9999', { headers }),
+            axios.get('/api/census/summary', { headers }),
+          ]);
+          if (!cancelled) {
+            setData(Array.isArray(cRes.data) ? cRes.data : (cRes.data.data || []));
+            setSummary(sRes.data || null);
+          }
+        }
+      } catch (err) {
+        console.error('Report fetch error:', err);
+        if (!cancelled) { setData([]); setSummary(null); }
       }
-    } catch (err) {
-      console.error('Report fetch error:', err);
-      toast.error('خطأ في تحميل البيانات');
-    }
-    setLoading(false);
-  }, [reportType, token]);
+      if (!cancelled) setLoading(false);
+    };
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+    fetchAll();
+    return () => { cancelled = true; };
+  }, [reportType, token, locked]);
 
-  const filtered = data.filter(item => {
+  const safeData = Array.isArray(data) ? data : [];
+
+  const filtered = safeData.filter(item => {
+    if (!item) return false;
     if (filters.search) {
       const s = filters.search.toLowerCase();
       const name = (item.name || item.headName || '').toLowerCase();
@@ -75,9 +93,9 @@ function Reports() {
     return true;
   });
 
-  const regions = [...new Set(data.map(d => d.region).filter(Boolean))];
-  const professions = [...new Set(data.map(d => d.profession).filter(Boolean))];
-  const teams = [...new Set(data.map(d => d.teamNumber).filter(Boolean))].sort((a, b) => a - b);
+  const regions = [...new Set(safeData.map(d => d.region).filter(Boolean))];
+  const professions = [...new Set(safeData.map(d => d.profession).filter(Boolean))];
+  const teams = [...new Set(safeData.map(d => d.teamNumber).filter(Boolean))].sort((a, b) => a - b);
 
   const charts = (() => {
     if (reportType === 'workers') {
@@ -96,7 +114,8 @@ function Reports() {
     return [{ title: 'الحالة المادية', data: sc }, { title: 'نوع السكن', data: hc }];
   })();
 
-  const maxVal = Math.max(...charts.flatMap(c => Object.values(c.data)), 1);
+  const allVals = charts.flatMap(c => Object.values(c.data));
+  const maxVal = allVals.length > 0 ? Math.max(...allVals, 1) : 1;
 
   const exportPDF = () => {
     const el = document.getElementById('report-print-area');
@@ -119,9 +138,9 @@ function Reports() {
     w.document.write('</tr></thead><tbody>');
     filtered.forEach((item, i) => {
       w.document.write('<tr>');
-      if (reportType === 'workers') w.document.write(`<td>${i+1}</td><td>${item.name}</td><td>${item.age}</td><td>${item.region}</td><td>${item.profession}</td><td>${item.teamNumber}</td>`);
-      else if (reportType === 'families') w.document.write(`<td>${i+1}</td><td>${item.name}</td><td>${item.teamNumber}</td><td>${item.memberCount||0}</td><td>${(item.totalAmount||0).toLocaleString('ar-SA')}</td>`);
-      else w.document.write(`<td>${i+1}</td><td>${item.headName}</td><td>${item.familyNumber}</td><td>${item.village}</td><td>${item.maleCount}</td><td>${item.femaleCount}</td><td>${(item.averageIncome||0).toLocaleString('ar-SA')}</td>`);
+      if (reportType === 'workers') w.document.write(`<td>${i+1}</td><td>${item.name||''}</td><td>${item.age||''}</td><td>${item.region||''}</td><td>${item.profession||''}</td><td>${item.teamNumber||''}</td>`);
+      else if (reportType === 'families') w.document.write(`<td>${i+1}</td><td>${item.name||''}</td><td>${item.teamNumber||''}</td><td>${item.memberCount||0}</td><td>${(item.totalAmount||0).toLocaleString('ar-SA')}</td>`);
+      else w.document.write(`<td>${i+1}</td><td>${item.headName||''}</td><td>${item.familyNumber||''}</td><td>${item.village||''}</td><td>${item.maleCount||0}</td><td>${item.femaleCount||0}</td><td>${(item.averageIncome||0).toLocaleString('ar-SA')}</td>`);
       w.document.write('</tr>');
     });
     w.document.write('</tbody></table><div class="ft">ابناء راس عيسى — المصمم غيث</div></body></html>');
@@ -131,14 +150,21 @@ function Reports() {
 
   const exportExcel = () => {
     let csv = '\uFEFF';
-    if (reportType === 'workers') { csv += 'الاسم,العمر,المنطقة,المهنة,الفرقة\n'; filtered.forEach(w2 => { csv += `${w2.name},${w2.age},${w2.region},${w2.profession},${w2.teamNumber}\n`; }); }
-    else if (reportType === 'families') { csv += 'الاسم,الفرقة,عدد الأفراد,المبلغ\n'; filtered.forEach(f => { csv += `${f.name},${f.teamNumber},${f.memberCount||0},${f.totalAmount||0}\n`; }); }
-    else { csv += 'رب الأسرة,الرقم,القرية,الذكور,الإناث,الدخل\n'; filtered.forEach(c => { csv += `${c.headName},${c.familyNumber},${c.village},${c.maleCount},${c.femaleCount},${c.averageIncome||0}\n`; }); }
+    if (reportType === 'workers') { csv += 'الاسم,العمر,المنطقة,المهنة,الفرقة\n'; filtered.forEach(w2 => { csv += `${w2.name||''},${w2.age||''},${w2.region||''},${w2.profession||''},${w2.teamNumber||''}\n`; }); }
+    else if (reportType === 'families') { csv += 'الاسم,الفرقة,عدد الأفراد,المبلغ\n'; filtered.forEach(f => { csv += `${f.name||''},${f.teamNumber||''},${f.memberCount||0},${f.totalAmount||0}\n`; }); }
+    else { csv += 'رب الأسرة,الرقم,القرية,الذكور,الإناث,الدخل\n'; filtered.forEach(c => { csv += `${c.headName||''},${c.familyNumber||''},${c.village||''},${c.maleCount||0},${c.femaleCount||0},${c.averageIncome||0}\n`; }); }
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `report_${reportType}_${Date.now()}.csv`; a.click();
   };
 
-  if (!canWorkers && !canFamilies && !canCensus) {
+  const selectBtn = (type, label) => (
+    <button key={type} onClick={() => { setReportType(type); setFilters({ search: '', region: '', profession: '', team: '' }); }}
+      style={{ padding: '0.6rem 1.2rem', borderRadius: '10px', border: '1px solid', borderColor: reportType === type ? 'var(--primary)' : 'rgba(99,102,241,0.2)', background: reportType === type ? 'rgba(99,102,241,0.2)' : 'transparent', color: reportType === type ? 'var(--primary-light)' : 'var(--gray-light)', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'inherit', fontWeight: '600' }}>{label}</button>
+  );
+
+  const inputStyle = { padding: '0.5rem 0.8rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', color: 'white', fontFamily: 'inherit', fontSize: '0.85rem' };
+
+  if (locked) {
     return (
       <div className="tab-section">
         <div className="section-header">
@@ -154,6 +180,8 @@ function Reports() {
     );
   }
 
+  if (!reportType) return null;
+
   return (
     <div className="tab-section">
       <div className="section-header">
@@ -163,22 +191,21 @@ function Reports() {
       </div>
 
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        {canWorkers && <button onClick={() => setReportType('workers')} style={{ padding: '0.6rem 1.2rem', borderRadius: '10px', border: '1px solid', borderColor: reportType === 'workers' ? 'var(--primary)' : 'rgba(99,102,241,0.2)', background: reportType === 'workers' ? 'rgba(99,102,241,0.2)' : 'transparent', color: reportType === 'workers' ? 'var(--primary-light)' : 'var(--gray-light)', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'inherit', fontWeight: '600' }}>👷 العمال</button>}
-        {canFamilies && <button onClick={() => setReportType('families')} style={{ padding: '0.6rem 1.2rem', borderRadius: '10px', border: '1px solid', borderColor: reportType === 'families' ? 'var(--primary)' : 'rgba(99,102,241,0.2)', background: reportType === 'families' ? 'rgba(99,102,241,0.2)' : 'transparent', color: reportType === 'families' ? 'var(--primary-light)' : 'var(--gray-light)', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'inherit', fontWeight: '600' }}>👨‍👩‍👧‍👦 المساعدات</button>}
-        {canCensus && <button onClick={() => setReportType('census')} style={{ padding: '0.6rem 1.2rem', borderRadius: '10px', border: '1px solid', borderColor: reportType === 'census' ? 'var(--primary)' : 'rgba(99,102,241,0.2)', background: reportType === 'census' ? 'rgba(99,102,241,0.2)' : 'transparent', color: reportType === 'census' ? 'var(--primary-light)' : 'var(--gray-light)', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'inherit', fontWeight: '600' }}>📋 التعداد</button>}
+        {canWorkers && selectBtn('workers', '👷 العمال')}
+        {canFamilies && selectBtn('families', '👨‍👩‍👧‍👦 المساعدات')}
+        {canCensus && selectBtn('census', '📋 التعداد')}
       </div>
 
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <input type="text" placeholder="بحث بالاسم، القرية، رقم الأسرة..." value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })}
-          style={{ flex: 1, minWidth: '150px', padding: '0.5rem 0.8rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', color: 'white', fontFamily: 'inherit', fontSize: '0.85rem' }} />
+        <input type="text" placeholder="بحث بالاسم، القرية، رقم الأسرة..." value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: '150px' }} />
         {reportType === 'workers' && <>
-          <select value={filters.region} onChange={e => setFilters({ ...filters, region: e.target.value })} style={{ padding: '0.5rem 0.8rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', color: 'white', fontFamily: 'inherit', fontSize: '0.85rem' }}>
+          <select value={filters.region} onChange={e => setFilters({ ...filters, region: e.target.value })} style={inputStyle}>
             <option value="">جميع المناطق</option>{regions.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
-          <select value={filters.profession} onChange={e => setFilters({ ...filters, profession: e.target.value })} style={{ padding: '0.5rem 0.8rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', color: 'white', fontFamily: 'inherit', fontSize: '0.85rem' }}>
+          <select value={filters.profession} onChange={e => setFilters({ ...filters, profession: e.target.value })} style={inputStyle}>
             <option value="">جميع المهن</option>{professions.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
-          <select value={filters.team} onChange={e => setFilters({ ...filters, team: e.target.value })} style={{ padding: '0.5rem 0.8rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', color: 'white', fontFamily: 'inherit', fontSize: '0.85rem' }}>
+          <select value={filters.team} onChange={e => setFilters({ ...filters, team: e.target.value })} style={inputStyle}>
             <option value="">جميع الفرق</option>{teams.map(t => <option key={t} value={t}>فرقة {t}</option>)}
           </select>
         </>}
@@ -190,7 +217,9 @@ function Reports() {
         <span style={{ marginRight: 'auto', color: 'var(--gray)', fontSize: '0.85rem' }}>{filtered.length} سجل</span>
       </div>
 
-      {loading ? <div className="spinner"></div> : (
+      {loading ? (
+        <div className="spinner"></div>
+      ) : (
         <div id="report-print-area">
           {charts.map((chart, ci) => (
             <div key={ci} className="chart-card" style={{ marginBottom: '1.5rem' }}>
