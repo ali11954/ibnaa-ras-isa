@@ -17,6 +17,7 @@ const COL_LABELS = {
 const WorkersTable = () => {
   const { token, isAdmin } = useAuth();
   const [workers, setWorkers] = useState([]);
+  const [allWorkers, setAllWorkers] = useState([]);
   const [pagination, setPagination] = useState({});
   const [filters, setFilters] = useState({ regions: [], professions: [] });
   const [search, setSearch] = useState('');
@@ -33,6 +34,7 @@ const WorkersTable = () => {
   const [showAdd, setShowAdd] = useState(false);
   const [showCols, setShowCols] = useState(false);
   const [showCharts, setShowCharts] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const [columns, setColumns] = useState(() => {
     try { return JSON.parse(localStorage.getItem('workerCols')) || { ...DEFAULT_COLUMNS }; }
     catch { return { ...DEFAULT_COLUMNS }; }
@@ -48,12 +50,23 @@ const WorkersTable = () => {
 
   const toggleCol = (key) => setColumns(prev => ({ ...prev, [key]: !prev[key] }));
 
+  const hasActiveFilter = search || region || profession || team;
+
+  const buildFilterParams = useCallback(() => {
+    const params = {};
+    if (search) params.search = search;
+    if (region) params.region = region;
+    if (profession) params.profession = profession;
+    if (team) params.team = team;
+    return params;
+  }, [search, region, profession, team]);
+
   const fetchWorkers = useCallback(async () => {
     if (!token) { setBlocked(true); return; }
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page, limit: 26, search, region, profession });
-      if (team) params.append('team', team);
+      const filterParams = buildFilterParams();
+      const params = new URLSearchParams({ page, limit: 26, ...filterParams });
       const res = await axios.get(`/api/workers?${params}`, { headers: { Authorization: `Bearer ${token}` } });
       setWorkers(res.data.data || []);
       setPagination(res.data.pagination || {});
@@ -61,11 +74,22 @@ const WorkersTable = () => {
       setBlocked(false);
     } catch (err) { if (err.response?.status === 403) setBlocked(true); }
     setLoading(false);
-  }, [page, search, region, profession, team, token]);
+  }, [page, buildFilterParams, token]);
+
+  const fetchAllWorkers = useCallback(async () => {
+    if (!token) return;
+    try {
+      const filterParams = buildFilterParams();
+      const params = new URLSearchParams({ page: 1, limit: 9999, ...filterParams });
+      const res = await axios.get(`/api/workers?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+      setAllWorkers(res.data.data || []);
+    } catch (err) {}
+  }, [buildFilterParams, token]);
 
   useEffect(() => { fetchWorkers(); }, [fetchWorkers]);
+  useEffect(() => { fetchAllWorkers(); }, [fetchAllWorkers]);
 
-  const handleSearch = (e) => { e.preventDefault(); setPage(1); fetchWorkers(); };
+  const handleSearch = (e) => { e.preventDefault(); setPage(1); fetchWorkers(); fetchAllWorkers(); };
 
   const handleTransfer = async () => {
     if (!transferTo) { toast.error('اختر الفرقة الجديدة'); return; }
@@ -73,7 +97,7 @@ const WorkersTable = () => {
       await axios.post(`/api/workers/${transferWorker._id}/transfer`, { toTeam: parseInt(transferTo) }, { headers: { Authorization: `Bearer ${token}` } });
       toast.success(`تم نقل ${transferWorker.name} من فرقة ${transferWorker.teamNumber} إلى فرقة ${transferTo}`);
       setTransferWorker(null); setTransferTo('');
-      fetchWorkers();
+      fetchWorkers(); fetchAllWorkers();
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ في النقل'); }
   };
 
@@ -96,7 +120,7 @@ const WorkersTable = () => {
       toast.success('تمت إضافة العامل');
       setShowAdd(false);
       setNewWorker({ name:'', nationalId:'', birthYear:'', age:'', ageGroup:'', region:'', birthPlace:'', currentPlace:'', profession:'', teamNumber:'', note:'' });
-      fetchWorkers();
+      fetchWorkers(); fetchAllWorkers();
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ في الإضافة'); }
   };
 
@@ -105,7 +129,7 @@ const WorkersTable = () => {
     try {
       await axios.delete(`/api/workers/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       toast.success('تم الحذف');
-      fetchWorkers();
+      fetchWorkers(); fetchAllWorkers();
     } catch (err) { toast.error('خطأ في الحذف'); }
   };
 
@@ -127,7 +151,7 @@ const WorkersTable = () => {
       }, { headers: { Authorization: `Bearer ${token}` } });
       toast.success('تم تعديل العامل');
       setEditingWorker(null);
-      fetchWorkers();
+      fetchWorkers(); fetchAllWorkers();
     } catch (err) { toast.error(err.response?.data?.error || 'خطأ في التعديل'); }
   };
 
@@ -138,7 +162,10 @@ const WorkersTable = () => {
     } catch (err) {}
   };
 
-  const handleExportPDF = () => {
+  const doExportPDF = (includeCharts) => {
+    const data = allWorkers;
+    const total = data.length;
+
     const visibleCols = Object.keys(columns).filter(k => columns[k]);
     const colHeaders = visibleCols.map(k => COL_LABELS[k] || k).join('</th><th>');
     const colCells = (w) => visibleCols.map(k => {
@@ -152,31 +179,42 @@ const WorkersTable = () => {
       return Object.entries(map).sort((a,b)=>b[1]-a[1]);
     };
 
-    const ageRows = countByExport(workers, 'ageGroup').map(([n,c],i) => `<tr><td>${i+1}</td><td>${n}</td><td>${c}</td><td>${workers.length?Math.round(c/workers.length*100):0}%</td></tr>`).join('');
-    const regionRows = countByExport(workers, 'region').map(([n,c],i) => `<tr><td>${i+1}</td><td>${n}</td><td>${c}</td><td>${workers.length?Math.round(c/workers.length*100):0}%</td></tr>`).join('');
-    const profRows = countByExport(workers, 'profession').map(([n,c],i) => `<tr><td>${i+1}</td><td>${n}</td><td>${c}</td><td>${workers.length?Math.round(c/workers.length*100):0}%</td></tr>`).join('');
-    const teamRows = countByExport(workers, 'teamNumber').map(([n,c],i) => `<tr><td>${i+1}</td><td>الفرقة ${n}</td><td>${c}</td><td>${workers.length?Math.round(c/workers.length*100):0}%</td></tr>`).join('');
+    let chartsHtml = '';
+    if (includeCharts) {
+      const ageRows = countByExport(data, 'ageGroup').map(([n,c],i) => `<tr><td>${i+1}</td><td>${n}</td><td>${c}</td><td>${total?Math.round(c/total*100):0}%</td></tr>`).join('');
+      const regionRows = countByExport(data, 'region').map(([n,c],i) => `<tr><td>${i+1}</td><td>${n}</td><td>${c}</td><td>${total?Math.round(c/total*100):0}%</td></tr>`).join('');
+      const profRows = countByExport(data, 'profession').map(([n,c],i) => `<tr><td>${i+1}</td><td>${n}</td><td>${c}</td><td>${total?Math.round(c/total*100):0}%</td></tr>`).join('');
+      const teamRows = countByExport(data, 'teamNumber').map(([n,c],i) => `<tr><td>${i+1}</td><td>الفرقة ${n}</td><td>${c}</td><td>${total?Math.round(c/total*100):0}%</td></tr>`).join('');
+      const birthRows = countByExport(data, 'birthPlace').map(([n,c],i) => `<tr><td>${i+1}</td><td>${n}</td><td>${c}</td><td>${total?Math.round(c/total*100):0}%</td></tr>`).join('');
+      const noteRows = countByExport(data, 'note').map(([n,c],i) => `<tr><td>${i+1}</td><td>${n}</td><td>${c}</td><td>${total?Math.round(c/total*100):0}%</td></tr>`).join('');
 
-    const chartsHtml = `
-      <div style="page-break-before:always;margin-top:20px">
-        <h2 style="text-align:center">الرسوم البيانية</h2>
-        <h3>الفئات العمرية</h3>
-        <table><tr><th>#</th><th>الفئة</th><th>العدد</th><th>النسبة</th></tr>${ageRows}</table>
-        <h3 style="margin-top:15px">المناطق</h3>
-        <table><tr><th>#</th><th>المنطقة</th><th>العدد</th><th>النسبة</th></tr>${regionRows}</table>
-        <h3 style="margin-top:15px">المهن</h3>
-        <table><tr><th>#</th><th>المهنة</th><th>العدد</th><th>النسبة</th></tr>${profRows}</table>
-        <h3 style="margin-top:15px">الفرق</h3>
-        <table><tr><th>#</th><th>الفرقة</th><th>العدد</th><th>النسبة</th></tr>${teamRows}</table>
-      </div>`;
+      chartsHtml = `
+        <div style="page-break-before:always;margin-top:20px">
+          <h2 style="text-align:center">الرسوم البيانية</h2>
+          <h3>الفئات العمرية</h3>
+          <table><tr><th>#</th><th>الفئة</th><th>العدد</th><th>النسبة</th></tr>${ageRows}</table>
+          <h3 style="margin-top:15px">المناطق</h3>
+          <table><tr><th>#</th><th>المنطقة</th><th>العدد</th><th>النسبة</th></tr>${regionRows}</table>
+          <h3 style="margin-top:15px">المهن</h3>
+          <table><tr><th>#</th><th>المهنة</th><th>العدد</th><th>النسبة</th></tr>${profRows}</table>
+          <h3 style="margin-top:15px">أماكن الميلاد</h3>
+          <table><tr><th>#</th><th>مكان الميلاد</th><th>العدد</th><th>النسبة</th></tr>${birthRows}</table>
+          <h3 style="margin-top:15px">الفرق</h3>
+          <table><tr><th>#</th><th>الفرقة</th><th>العدد</th><th>النسبة</th></tr>${teamRows}</table>
+          <h3 style="margin-top:15px">الملاحظات</h3>
+          <table><tr><th>#</th><th>الملاحظة</th><th>العدد</th><th>النسبة</th></tr>${noteRows}</table>
+        </div>`;
+    }
+
+    const filterLabel = hasActiveFilter ? `(فلتر: ${[search, region, profession, team ? 'فرقة '+team : ''].filter(Boolean).join(', ')})` : '(الكل)';
 
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`<html><head><title>كشف العمال</title>
       <style>body{font-family:Arial,sans-serif;direction:rtl;padding:20px}table{width:100%;border-collapse:collapse;margin-top:10px}th,td{border:1px solid #333;padding:6px 8px;text-align:right;font-size:11px}th{background:#eee;font-weight:bold}h2{text-align:center}h3{margin-top:15px;font-size:13px}@media print{.no-print{display:none}}</style></head><body>
       <h2>ابناء راس عيسى - كشف العمال</h2>
-      <p>إجمالي العمال: ${pagination.total || 0} | الصفحة ${page} من ${pagination.totalPages || 1}</p>
+      <p>إجمالي العمال: ${total} ${filterLabel}</p>
       <table><tr><th>#</th><th>${colHeaders}</th><th>البصمة</th></tr>
-      ${workers.map((w,i)=>`<tr><td>${(page-1)*26+i+1}</td>${colCells(w)}<td style="width:80px"></td></tr>`).join('')}
+      ${data.map((w,i)=>`<tr><td>${i+1}</td>${colCells(w)}<td style="width:80px"></td></tr>`).join('')}
       </table>
       ${chartsHtml}
       <div style="background:#f0f8ff;border:1px solid #4a90d9;padding:10px;margin-top:15px;font-size:12px;border-radius:4px">
@@ -197,15 +235,19 @@ const WorkersTable = () => {
     printWindow.document.close(); printWindow.print();
   };
 
+  const handleExportPDF = () => {
+    setShowExportDialog(true);
+  };
+
   const handleExportExcel = () => {
-    const params = new URLSearchParams({ page: 1, limit: 9999, search, region, profession });
-    if (team) params.append('team', team);
+    const filterParams = buildFilterParams();
+    const params = new URLSearchParams({ page: 1, limit: 9999, ...filterParams });
     axios.get(`/api/export/workers?${params}&format=excel`, { headers: { Authorization: `Bearer ${token}` }, responseType: 'blob' })
       .then(res => {
         const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = team ? `workers_team${team}.xlsx` : 'workers_all.xlsx';
+        link.download = team ? `workers_team${team}.xlsx` : (hasActiveFilter ? 'workers_filtered.xlsx' : 'workers_all.xlsx');
         link.click();
       }).catch(() => toast.error('خطأ في التصدير'));
   };
@@ -231,7 +273,7 @@ const WorkersTable = () => {
       <div className="section-header">
         <span className="section-badge">بيانات العمال</span>
         <h2 className="section-title">كشف <span className="gradient-text">العمال</span></h2>
-        <p className="section-desc">إجمالي {pagination.total || 0} عامل</p>
+        <p className="section-desc">إجمالي {pagination.total || 0} عامل {hasActiveFilter ? '(مرشح)' : ''}</p>
       </div>
 
       <div className="workers-toolbar">
@@ -276,7 +318,7 @@ const WorkersTable = () => {
       )}
 
       {showCharts && !loading && (
-        <WorkersCharts workers={workers} />
+        <WorkersCharts workers={allWorkers} />
       )}
 
       {showLog && (
@@ -432,6 +474,30 @@ const WorkersTable = () => {
               <div className="form-group"><label>ملاحظة</label><input value={editingWorker.note} onChange={e=>setEditingWorker({...editingWorker, note:e.target.value})} placeholder="ملاحظة" /></div>
             </div>
             <button className="btn-primary" style={{width:'100%',justifyContent:'center',marginTop:'12px'}} onClick={handleEditWorker}>حفظ التعديلات</button>
+          </div>
+        </div>
+      )}
+
+      {showExportDialog && (
+        <div className="modal-overlay" onClick={() => setShowExportDialog(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowExportDialog(false)}>✕</button>
+            <h3>تصدير كشف العمال PDF</h3>
+            <p style={{textAlign:'center',color:'var(--gray-light)',marginBottom:'1.2rem',fontSize:'0.9rem'}}>
+              إجمالي العمال: <strong>{allWorkers.length}</strong> عامل
+              {hasActiveFilter && <span style={{color:'var(--orange)'}}> (مرشح)</span>}
+            </p>
+            <div style={{display:'flex',flexDirection:'column',gap:'0.8rem'}}>
+              <button className="btn-primary" style={{width:'100%',justifyContent:'center'}} onClick={() => { setShowExportDialog(false); doExportPDF(true); }}>
+                📊 تصدير مع الرسوم البيانية
+              </button>
+              <button className="btn-export" style={{width:'100%',justifyContent:'center'}} onClick={() => { setShowExportDialog(false); doExportPDF(false); }}>
+                📄 تصدير بدون رسوم بيانية
+              </button>
+              <button className="btn-export" style={{width:'100%',justifyContent:'center',background:'rgba(239,68,68,0.1)',borderColor:'rgba(239,68,68,0.3)',color:'#ef4444'}} onClick={() => setShowExportDialog(false)}>
+                إلغاء
+              </button>
+            </div>
           </div>
         </div>
       )}
