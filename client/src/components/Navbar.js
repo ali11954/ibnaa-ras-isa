@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { toast } from 'react-toastify';
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [showModal, setShowModal] = useState(null);
   const { user, logout, isAdmin } = useAuth();
+  const { theme, toggleTheme, isDark } = useTheme();
 
   useEffect(() => {
     const h = () => setScrolled(window.scrollY > 50);
@@ -19,6 +21,9 @@ const Navbar = () => {
         <div className="container">
           <a href="#hero" className="logo">ابناء راس عيسى</a>
           <div className="nav-actions">
+            <button className="theme-toggle" onClick={toggleTheme} title={isDark ? 'الوضع النهاري' : 'الوضع الليلي'}>
+              {isDark ? '☀️' : '🌙'}
+            </button>
             {user ? (
               <div className="user-menu">
                 <span className="user-name">{user.name}</span>

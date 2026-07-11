@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import Dashboard from './components/Dashboard';
@@ -26,10 +27,11 @@ function App() {
   ];
 
   return (
-    <AuthProvider>
-      <div className="App">
-        <ToastContainer position="top-right" autoClose={3000} theme="colored" />
-        <Navbar />
+    <ThemeProvider>
+      <AuthProvider>
+        <div className="App">
+          <ToastContainer position="top-right" autoClose={3000} theme="colored" />
+          <Navbar />
         <Hero />
 
         <div className="main-tabs-container">
@@ -59,8 +61,9 @@ function App() {
 
         <AdminPanel />
         <Footer />
-      </div>
-    </AuthProvider>
+        </div>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
