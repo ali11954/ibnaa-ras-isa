@@ -152,7 +152,45 @@ export default function CensusForm({ onSave, onCancel, editData }) {
     setSaving(true);
     try {
       await axios.put(`/api/census/${censusId}`, { members }, { headers });
-      toast.success('تم حفظ أفراد الأسرة');
+      const marriedOut = members.filter(m => m.familyStatus === 'متزوج ومستقل');
+      let created = 0;
+      for (const m of marriedOut) {
+        if (!m.name || !m.spouseName) continue;
+        try {
+          const newFamily = {
+            headName: m.name,
+            phone: '',
+            currentFamilySize: 2,
+            maleCount: m.gender === 'ذكر' ? 1 : 0,
+            femaleCount: m.gender === 'أنثى' ? 1 : 0,
+            marriedCount: 1,
+            deceasedCount: 0,
+            governorate: family.governorate,
+            directorate: family.directorate,
+            isolation: family.isolation,
+            village: family.village,
+            neighborhood: family.neighborhood,
+            street: family.street,
+            houseNumber: '',
+            residenceDate: '',
+            mainIncomeSource: m.work || '',
+            otherIncomeSources: '',
+            averageIncome: m.memberIncome || 0,
+            financialStatus: '',
+            notes: `أسرة جديدة مستقلة — رب الأسرة: ${m.name} — الزوجه: ${m.spouseName} — ابن/ابنة من الأسرة: ${family.headName} (${family.familyNumber})`,
+            members: [
+              { seq: 1, name: m.spouseName, gender: m.gender === 'ذكر' ? 'أنثى' : 'ذكر', age: 0, birthDate: '', nationalId: '', idType: '', relationship: 'زوجة', parentName: '', maritalStatus: 'متزوج', familyStatus: 'يعيش مع العائلة', newFamilyNumber: '', spouseName: m.name, educationLevel: '', educationStatus: '', work: '', memberIncome: 0, healthStatus: '', chronicDisease: '', injury: '', disability: '', memberNotes: '' },
+            ],
+          };
+          await axios.post('/api/census', newFamily, { headers });
+          created++;
+        } catch (e) { console.error('Failed to create family for', m.name, e); }
+      }
+      if (created > 0) {
+        toast.success(`تم حفظ الأفراد وإنشاء ${created} أسرة جديدة مستقلة`);
+      } else {
+        toast.success('تم حفظ أفراد الأسرة');
+      }
     } catch (err) { toast.error('خطأ في الحفظ: ' + (err.response?.data?.error || err.message)); }
     setSaving(false);
   };
