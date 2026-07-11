@@ -7,7 +7,7 @@ const COLORS = ['#6366f1', '#ec4899', '#06b6d4', '#10b981', '#f59e0b', '#8b5cf6'
 
 const Reports = () => {
   const { token, isAdmin, hasPermission } = useAuth();
-  const [reportType, setReportType] = useState('workers');
+  const [reportType, setReportType] = useState('');
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({ region: '', profession: '', team: '', search: '' });
@@ -26,12 +26,13 @@ const Reports = () => {
   ].filter(Boolean);
 
   useEffect(() => {
-    if (availableTypes.length > 0 && !availableTypes.find(t => t.key === reportType)) {
+    if (availableTypes.length > 0 && !reportType) {
       setReportType(availableTypes[0].key);
     }
-  }, []);
+  });
 
   const fetchData = useCallback(async () => {
+    if (!reportType || availableTypes.length === 0) { setLoading(false); return; }
     setLoading(true);
     try {
       if (reportType === 'workers' && canWorkers) {
@@ -211,129 +212,136 @@ const Reports = () => {
         <p className="section-desc">تقارير شاملة مع رسوم بيانية وتصدير احترافي</p>
       </div>
 
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        {availableTypes.map(t => (
-          <button key={t.key} onClick={() => setReportType(t.key)}
-            style={{ padding: '0.6rem 1.2rem', borderRadius: '10px', border: '1px solid', borderColor: reportType === t.key ? 'var(--primary)' : 'rgba(99,102,241,0.2)', background: reportType === t.key ? 'rgba(99,102,241,0.2)' : 'transparent', color: reportType === t.key ? 'var(--primary-light)' : 'var(--gray-light)', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'inherit', fontWeight: '600', transition: 'all 0.2s' }}>
-            {t.label}
-          </button>
-        ))}
-        {availableTypes.length === 0 && <p style={{ color: 'var(--gray)' }}>ليس لديك صلاحيات لعرض التقارير</p>}
-      </div>
+      {availableTypes.length === 0 ? (
+        <div className="locked-content">
+          <div className="locked-icon">🔒</div>
+          <h3>ليس لديك صلاحيات لعرض التقارير</h3>
+          <p>تواصل مع المدير للحصول على الصلاحيات المناسبة</p>
+        </div>
+      ) : (<>
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+            {availableTypes.map(t => (
+              <button key={t.key} onClick={() => setReportType(t.key)}
+                style={{ padding: '0.6rem 1.2rem', borderRadius: '10px', border: '1px solid', borderColor: reportType === t.key ? 'var(--primary)' : 'rgba(99,102,241,0.2)', background: reportType === t.key ? 'rgba(99,102,241,0.2)' : 'transparent', color: reportType === t.key ? 'var(--primary-light)' : 'var(--gray-light)', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'inherit', fontWeight: '600', transition: 'all 0.2s' }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
 
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <input type="text" placeholder="بحث بالاسم..." value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })}
-          style={{ flex: 1, minWidth: '150px', padding: '0.5rem 0.8rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', color: 'white', fontFamily: 'inherit', fontSize: '0.85rem' }} />
-        {reportType === 'workers' && (
-          <>
-            <select value={filters.region} onChange={e => setFilters({ ...filters, region: e.target.value })}
-              style={{ padding: '0.5rem 0.8rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', color: 'white', fontFamily: 'inherit', fontSize: '0.85rem' }}>
-              <option value="">جميع المناطق</option>
-              {regions.map(r => <option key={r} value={r}>{r}</option>)}
-            </select>
-            <select value={filters.profession} onChange={e => setFilters({ ...filters, profession: e.target.value })}
-              style={{ padding: '0.5rem 0.8rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', color: 'white', fontFamily: 'inherit', fontSize: '0.85rem' }}>
-              <option value="">جميع المهن</option>
-              {professions.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-            <select value={filters.team} onChange={e => setFilters({ ...filters, team: e.target.value })}
-              style={{ padding: '0.5rem 0.8rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', color: 'white', fontFamily: 'inherit', fontSize: '0.85rem' }}>
-              <option value="">جميع الفرق</option>
-              {teams.map(t => <option key={t} value={t}>فرقة {t}</option>)}
-            </select>
-          </>
-        )}
-      </div>
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <input type="text" placeholder="بحث بالاسم..." value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })}
+              style={{ flex: 1, minWidth: '150px', padding: '0.5rem 0.8rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', color: 'white', fontFamily: 'inherit', fontSize: '0.85rem' }} />
+            {reportType === 'workers' && (
+              <>
+                <select value={filters.region} onChange={e => setFilters({ ...filters, region: e.target.value })}
+                  style={{ padding: '0.5rem 0.8rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', color: 'white', fontFamily: 'inherit', fontSize: '0.85rem' }}>
+                  <option value="">جميع المناطق</option>
+                  {regions.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+                <select value={filters.profession} onChange={e => setFilters({ ...filters, profession: e.target.value })}
+                  style={{ padding: '0.5rem 0.8rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', color: 'white', fontFamily: 'inherit', fontSize: '0.85rem' }}>
+                  <option value="">جميع المهن</option>
+                  {professions.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <select value={filters.team} onChange={e => setFilters({ ...filters, team: e.target.value })}
+                  style={{ padding: '0.5rem 0.8rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', color: 'white', fontFamily: 'inherit', fontSize: '0.85rem' }}>
+                  <option value="">جميع الفرق</option>
+                  {teams.map(t => <option key={t} value={t}>فرقة {t}</option>)}
+                </select>
+              </>
+            )}
+          </div>
 
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
-        <button className="btn-export" onClick={exportPDF}>📄 تصدير PDF</button>
-        <button className="btn-export" onClick={exportExcel}>📊 تصدير Excel</button>
-        <span style={{ marginRight: 'auto', color: 'var(--gray)', fontSize: '0.85rem', alignSelf: 'center' }}>{filtered.length} سجل</span>
-      </div>
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+            <button className="btn-export" onClick={exportPDF}>📄 تصدير PDF</button>
+            <button className="btn-export" onClick={exportExcel}>📊 تصدير Excel</button>
+            <span style={{ marginRight: 'auto', color: 'var(--gray)', fontSize: '0.85rem', alignSelf: 'center' }}>{filtered.length} سجل</span>
+          </div>
 
-      {loading ? <div className="spinner"></div> : (
-        <div id="report-print-area">
-          {charts.map((chart, ci) => (
-            <div key={ci} className="chart-card" style={{ marginBottom: '1.5rem' }}>
-              <h3 style={{ marginBottom: '1rem' }}>{chart.title}</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: Object.keys(chart.data).length > 6 ? '1fr 1fr' : '1fr', gap: '0.5rem' }}>
-                {Object.entries(chart.data).sort((a, b) => b[1] - a[1]).map(([key, val], i) => {
-                  const pct = maxVal > 0 ? Math.round((val / maxVal) * 100) : 0;
-                  return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ minWidth: '100px', fontSize: '0.8rem', color: 'var(--gray-light)' }}>{key}</span>
-                      <div style={{ flex: 1, height: '24px', background: 'rgba(99,102,241,0.08)', borderRadius: '6px', overflow: 'hidden', position: 'relative' }}>
-                        <div style={{ width: `${pct}%`, height: '100%', background: COLORS[i % COLORS.length], borderRadius: '6px', transition: 'width 0.5s ease', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: '0.3rem' }}>
-                          {pct > 15 && <span style={{ fontSize: '0.7rem', color: 'white', fontWeight: '700' }}>{val}</span>}
+          {loading ? <div className="spinner"></div> : (
+            <div id="report-print-area">
+              {charts.map((chart, ci) => (
+                <div key={ci} className="chart-card" style={{ marginBottom: '1.5rem' }}>
+                  <h3 style={{ marginBottom: '1rem' }}>{chart.title}</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: Object.keys(chart.data).length > 6 ? '1fr 1fr' : '1fr', gap: '0.5rem' }}>
+                    {Object.entries(chart.data).sort((a, b) => b[1] - a[1]).map(([key, val], i) => {
+                      const pct = maxVal > 0 ? Math.round((val / maxVal) * 100) : 0;
+                      return (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ minWidth: '100px', fontSize: '0.8rem', color: 'var(--gray-light)' }}>{key}</span>
+                          <div style={{ flex: 1, height: '24px', background: 'rgba(99,102,241,0.08)', borderRadius: '6px', overflow: 'hidden', position: 'relative' }}>
+                            <div style={{ width: `${pct}%`, height: '100%', background: COLORS[i % COLORS.length], borderRadius: '6px', transition: 'width 0.5s ease', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: '0.3rem' }}>
+                              {pct > 15 && <span style={{ fontSize: '0.7rem', color: 'white', fontWeight: '700' }}>{val}</span>}
+                            </div>
+                          </div>
+                          {pct <= 15 && <span style={{ fontSize: '0.75rem', fontWeight: '700', color: COLORS[i % COLORS.length] }}>{val}</span>}
                         </div>
-                      </div>
-                      {pct <= 15 && <span style={{ fontSize: '0.75rem', fontWeight: '700', color: COLORS[i % COLORS.length] }}>{val}</span>}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-
-          {reportType === 'workers' && summary && (
-            <div className="chart-card" style={{ marginBottom: '1.5rem' }}>
-              <h3>ملخص البيانات</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.8rem', marginTop: '0.8rem' }}>
-                {[
-                  { label: 'إجمالي العمال', value: summary.totalWorkers, color: '#6366f1' },
-                  { label: 'عدد الفرق', value: summary.totalTeams, color: '#10b981' },
-                  { label: 'عدد المناطق', value: (summary.regions || []).length, color: '#06b6d4' },
-                  { label: 'عدد المهن', value: (summary.professions || []).length, color: '#f59e0b' },
-                ].map((s, i) => (
-                  <div key={i} style={{ background: 'rgba(99,102,241,0.06)', borderRadius: '12px', padding: '1rem', textAlign: 'center', border: `1px solid ${s.color}22` }}>
-                    <div style={{ fontSize: '1.8rem', fontWeight: '800', color: s.color }}>{s.value?.toLocaleString('ar-SA') || 0}</div>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--gray)' }}>{s.label}</div>
+                      );
+                    })}
                   </div>
-                ))}
+                </div>
+              ))}
+
+              {reportType === 'workers' && summary && (
+                <div className="chart-card" style={{ marginBottom: '1.5rem' }}>
+                  <h3>ملخص البيانات</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.8rem', marginTop: '0.8rem' }}>
+                    {[
+                      { label: 'إجمالي العمال', value: summary.totalWorkers, color: '#6366f1' },
+                      { label: 'عدد الفرق', value: summary.totalTeams, color: '#10b981' },
+                      { label: 'عدد المناطق', value: (summary.regions || []).length, color: '#06b6d4' },
+                      { label: 'عدد المهن', value: (summary.professions || []).length, color: '#f59e0b' },
+                    ].map((s, i) => (
+                      <div key={i} style={{ background: 'rgba(99,102,241,0.06)', borderRadius: '12px', padding: '1rem', textAlign: 'center', border: `1px solid ${s.color}22` }}>
+                        <div style={{ fontSize: '1.8rem', fontWeight: '800', color: s.color }}>{s.value?.toLocaleString('ar-SA') || 0}</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--gray)' }}>{s.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="chart-card">
+                <h3>البيانات التفصيلية ({filtered.length} سجل)</h3>
+                <div style={{ overflowX: 'auto', marginTop: '0.8rem' }}>
+                  <table className="data-table" style={{ fontSize: '0.8rem' }}>
+                    <thead>
+                      <tr>
+                        {reportType === 'workers' && <><th>#</th><th>الاسم</th><th>العمر</th><th>المنطقة</th><th>المهنة</th><th>الفرقة</th><th>الحالة</th></>}
+                        {reportType === 'families' && <><th>#</th><th>رب الأسرة</th><th>الفرقة</th><th>عدد الأفراد</th><th>المبلغ</th><th>المستفيدون</th></>}
+                        {reportType === 'census' && <><th>#</th><th>رب الأسرة</th><th>الرقم</th><th>القرية</th><th>الذكور</th><th>الإناث</th><th>الدخل</th><th>الحالة</th></>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.slice(0, 50).map((item, i) => (
+                        <tr key={i}>
+                          {reportType === 'workers' && <>
+                            <td>{i + 1}</td><td>{item.name}</td><td>{item.age}</td><td>{item.region}</td>
+                            <td>{item.profession}</td><td>{item.teamNumber}</td>
+                            <td><span className={`badge ${item.status === 'نشط' ? 'badge-green' : 'badge-orange'}`}>{item.status || 'نشط'}</span></td>
+                          </>}
+                          {reportType === 'families' && <>
+                            <td>{i + 1}</td><td>{item.name}</td><td>{item.teamNumber}</td>
+                            <td>{item.memberCount || 0}</td><td>{(item.totalAmount || 0).toLocaleString('ar-SA')}</td>
+                            <td>{(item.beneficiaries || []).map(b => b.name).join(', ')}</td>
+                          </>}
+                          {reportType === 'census' && <>
+                            <td>{i + 1}</td><td>{item.headName}</td><td>{item.familyNumber}</td>
+                            <td>{item.village}</td><td>{item.maleCount}</td><td>{item.femaleCount}</td>
+                            <td>{(item.averageIncome || 0).toLocaleString('ar-SA')}</td>
+                            <td><span className={`badge ${item.financialStatus === 'جيد' ? 'badge-green' : item.financialStatus === 'ضعيف' ? 'badge-orange' : 'badge-blue'}`}>{item.financialStatus || '—'}</span></td>
+                          </>}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
-
-          <div className="chart-card">
-            <h3>البيانات التفصيلية ({filtered.length} سجل)</h3>
-            <div style={{ overflowX: 'auto', marginTop: '0.8rem' }}>
-              <table className="data-table" style={{ fontSize: '0.8rem' }}>
-                <thead>
-                  <tr>
-                    {reportType === 'workers' && <><th>#</th><th>الاسم</th><th>العمر</th><th>المنطقة</th><th>المهنة</th><th>الفرقة</th><th>الحالة</th></>}
-                    {reportType === 'families' && <><th>#</th><th>رب الأسرة</th><th>الفرقة</th><th>عدد الأفراد</th><th>المبلغ</th><th>المستفيدون</th></>}
-                    {reportType === 'census' && <><th>#</th><th>رب الأسرة</th><th>الرقم</th><th>القرية</th><th>الذكور</th><th>الإناث</th><th>الدخل</th><th>الحالة</th></>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.slice(0, 50).map((item, i) => (
-                    <tr key={i}>
-                      {reportType === 'workers' && <>
-                        <td>{i + 1}</td><td>{item.name}</td><td>{item.age}</td><td>{item.region}</td>
-                        <td>{item.profession}</td><td>{item.teamNumber}</td>
-                        <td><span className={`badge ${item.status === 'نشط' ? 'badge-green' : 'badge-orange'}`}>{item.status || 'نشط'}</span></td>
-                      </>}
-                      {reportType === 'families' && <>
-                        <td>{i + 1}</td><td>{item.name}</td><td>{item.teamNumber}</td>
-                        <td>{item.memberCount || 0}</td><td>{(item.totalAmount || 0).toLocaleString('ar-SA')}</td>
-                        <td>{(item.beneficiaries || []).map(b => b.name).join(', ')}</td>
-                      </>}
-                      {reportType === 'census' && <>
-                        <td>{i + 1}</td><td>{item.headName}</td><td>{item.familyNumber}</td>
-                        <td>{item.village}</td><td>{item.maleCount}</td><td>{item.femaleCount}</td>
-                        <td>{(item.averageIncome || 0).toLocaleString('ar-SA')}</td>
-                        <td><span className={`badge ${item.financialStatus === 'جيد' ? 'badge-green' : item.financialStatus === 'ضعيف' ? 'badge-orange' : 'badge-blue'}`}>{item.financialStatus || '—'}</span></td>
-                      </>}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+        </>)}
+      </div>
+    );
 };
 
 export default Reports;
