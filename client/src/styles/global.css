@@ -149,6 +149,74 @@
 [data-theme="light"] input[type="text"], [data-theme="light"] input[type="email"], [data-theme="light"] input[type="password"], [data-theme="light"] input[type="number"], [data-theme="light"] input[type="tel"], [data-theme="light"] input[type="date"] { background: #f8fafc; border-color: rgba(99,102,241,0.2); color: #0f172a; }
 [data-theme="light"] select { background: #f8fafc; border-color: rgba(99,102,241,0.2); color: #0f172a; }
 [data-theme="light"] textarea { background: #f8fafc; border-color: rgba(99,102,241,0.2); color: #0f172a; }
+[data-theme="light"] button { color: #0f172a; }
+[data-theme="light"] .btn-primary { color: #ffffff; }
+[data-theme="light"] .admin-card-header span { color: #475569; }
+[data-theme="light"] .admin-card p, [data-theme="light"] .admin-card span { color: #334155; }
+[data-theme="light"] .admin-content h3 { color: #0f172a; }
+[data-theme="light"] .admin-card-actions { border-top-color: rgba(99,102,241,0.1); }
+[data-theme="light"] .admin-tabs { border-bottom-color: rgba(99,102,241,0.1); }
+[data-theme="light"] .feedback-header { border-bottom-color: rgba(99,102,241,0.1); }
+[data-theme="light"] .feedback-actions { border-top-color: rgba(99,102,241,0.1); }
+[data-theme="light"] .email-config-card { background: rgba(255,255,255,0.8); border-color: rgba(99,102,241,0.1); color: #0f172a; }
+[data-theme="light"] .form-subtitle { color: #334155; }
+[data-theme="light"] .chart-toggle-container { background: rgba(99,102,241,0.08); }
+[data-theme="light"] .chart-toggle-btn.active { background: rgba(99,102,241,0.15); color: #4f46e5; }
+[data-theme="light"] .chart-toggle-btn { color: #64748b; }
+[data-theme="light"] .export-dialog { background: #ffffff; border-color: rgba(99,102,241,0.15); }
+[data-theme="light"] .export-dialog h3 { color: #0f172a; }
+[data-theme="light"] .export-dialog p { color: #475569; }
+[data-theme="light"] .export-dialog .export-btn { background: rgba(99,102,241,0.08); color: #4f46e5; }
+[data-theme="light"] .export-dialog .export-btn:hover { background: rgba(99,102,241,0.15); }
+[data-theme="light"] .worker-count-badge { background: rgba(99,102,241,0.1); color: #4f46e5; }
+[data-theme="light"] .team-name { color: #0f172a; }
+[data-theme="light"] .expanded-header { color: #334155; }
+[data-theme="light"] .expanded-members { background: rgba(241,245,249,0.5); }
+[data-theme="light"] .no-members { color: #64748b; }
+[data-theme="light"] .family-card { background: rgba(241,245,249,0.6); border-color: rgba(99,102,241,0.1); }
+[data-theme="light"] .family-name { color: #0f172a; }
+[data-theme="light"] .family-beneficiaries { color: #334155; }
+[data-theme="light"] .family-summary { color: #475569; }
+[data-theme="light"] .family-card-header { border-bottom-color: rgba(99,102,241,0.1); }
+[data-theme="light"] .family-card-footer { border-top-color: rgba(99,102,241,0.1); }
+[data-theme="light"] .census-form-section { background: rgba(241,245,249,0.6); }
+[data-theme="light"] .census-form-section h4 { color: #0f172a; }
+[data-theme="light"] .census-form-row { color: #0f172a; }
+[data-theme="light"] .census-form-row label { color: #334155; }
+[data-theme="light"] .census-form-row span { color: #334155; }
+[data-theme="light"] .census-member-card { background: rgba(241,245,249,0.5); border-color: rgba(99,102,241,0.1); }
+[data-theme="light"] .census-member-card span { color: #334155; }
+[data-theme="light"] .census-actions { border-top-color: rgba(99,102,241,0.1); }
+[data-theme="light"] .form-actions { border-top-color: rgba(99,102,241,0.1); }
+[data-theme="light"] .summary-cards { background: rgba(241,245,249,0.5); }
+[data-theme="light"] .census-summary-grid .summary-card { background: rgba(241,245,249,0.8); }
+[data-theme="light"] .census-list-item { background: rgba(255,255,255,0.6); border-color: rgba(99,102,241,0.1); }
+[data-theme="light"] .census-list-item:hover { background: rgba(255,255,255,0.9); }
+[data-theme="light"] .census-list-item .summary { color: #475569; }
+[data-theme="light"] .census-detail-section { background: rgba(241,245,249,0.5); }
+[data-theme="light"] .census-detail-section h4 { color: #0f172a; }
+[data-theme="light"] .census-detail-section table { border-color: rgba(99,102,241,0.1); }
+[data-theme="light"] .census-detail-section table th { background: rgba(241,245,249,0.5); color: #0f172a; }
+[data-theme="light"] .census-detail-section table td { color: #334155; border-color: rgba(99,102,241,0.08); }
+[data-theme="light"] .section { background: transparent; }
+[data-theme="light"] .section + .section { border-top-color: rgba(99,102,241,0.1); }
+[data-theme="light"] .census-stat-card { background: rgba(241,245,249,0.8); border-color: rgba(99,102,241,0.1); }
+[data-theme="light"] .census-stat-card .number { color: #0f172a; }
+[data-theme="light"] .census-stat-card .label { color: #475569; }
+[data-theme="light"] .census-stat-card .icon { background: rgba(99,102,241,0.08); }
+[data-theme="light"] .families-toolbar { background: rgba(241,245,249,0.6); }
+[data-theme="light"] .families-toolbar .search-input { background: #f8fafc; color: #0f172a; }
+[data-theme="light"] .families-toolbar select { background: #f8fafc; color: #0f172a; }
+[data-theme="light"] .family-print-summary { background: rgba(241,245,249,0.5); }
+[data-theme="light"] .family-print-summary span { color: #334155; }
+[data-theme="light"] .family-print-summary strong { color: #0f172a; }
+[data-theme="light"] .btn-close-print { background: rgba(239,68,68,0.1); color: #dc2626; }
+[data-theme="light"] .btn-close-print:hover { background: rgba(239,68,68,0.2); }
+[data-theme="light"] .alert-info { background: rgba(99,102,241,0.08); color: #4f46e5; border-color: rgba(99,102,241,0.2); }
+[data-theme="light"] .dashboard-admin-notice { background: rgba(99,102,241,0.08); color: #4f46e5; }
+[data-theme="light"] .dashboard-admin-notice a { color: #4f46e5; }
+[data-theme="light"] .no-print span, [data-theme="light"] .no-print div { color: #0f172a; }
+[data-theme="light"] .section-header .section-badge { color: #4f46e5; background: rgba(99,102,241,0.1); }
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 html { scroll-behavior: smooth; }
