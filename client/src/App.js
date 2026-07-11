@@ -32,7 +32,6 @@ function AppContent() {
   const visibleTabs = TAB_LIST.filter(tab => {
     if (tab.id === 'subscribe') return true;
     if (tab.id === 'feedback') return true;
-    if (tab.id === 'reports') return true;
     return isAdmin || hasPermission(tab.id);
   });
 

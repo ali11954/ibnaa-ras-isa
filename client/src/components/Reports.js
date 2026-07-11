@@ -15,28 +15,47 @@ const Reports = () => {
 
   const headers = { Authorization: `Bearer ${token}` };
 
+  const canWorkers = isAdmin || hasPermission('workers');
+  const canFamilies = isAdmin || hasPermission('families');
+  const canCensus = isAdmin || hasPermission('citizens');
+
+  const availableTypes = [
+    canWorkers && { key: 'workers', label: '👷 العمال' },
+    canFamilies && { key: 'families', label: '👨‍👩‍👧‍👦 المساعدات' },
+    canCensus && { key: 'census', label: '📋 التعداد' },
+  ].filter(Boolean);
+
+  useEffect(() => {
+    if (availableTypes.length > 0 && !availableTypes.find(t => t.key === reportType)) {
+      setReportType(availableTypes[0].key);
+    }
+  }, []);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      if (reportType === 'workers') {
+      if (reportType === 'workers' && canWorkers) {
         const res = await axios.get('/api/workers?limit=9999', { headers });
         setData(res.data.workers || res.data || []);
         const statsRes = await axios.get('/api/stats', { headers });
         setSummary(statsRes.data);
-      } else if (reportType === 'families') {
+      } else if (reportType === 'families' && canFamilies) {
         const res = await axios.get('/api/families?limit=9999', { headers });
         setData(res.data.families || res.data || []);
         const sumRes = await axios.get('/api/families/summary', { headers });
         setSummary(sumRes.data);
-      } else if (reportType === 'census') {
+      } else if (reportType === 'census' && canCensus) {
         const res = await axios.get('/api/census?limit=9999', { headers });
         setData(res.data.data || res.data || []);
         const sumRes = await axios.get('/api/census/summary', { headers });
         setSummary(sumRes.data);
+      } else {
+        setData([]);
+        setSummary(null);
       }
     } catch (err) { console.error(err); }
     setLoading(false);
-  }, [reportType, token]);
+  }, [reportType, token, canWorkers, canFamilies, canCensus]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -193,12 +212,13 @@ const Reports = () => {
       </div>
 
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        {[{ key: 'workers', label: '👷 العمال', icon: '👷' }, { key: 'families', label: '👨‍👩‍👧‍👦 المساعدات', icon: '👨‍👩‍👧‍👦' }, { key: 'census', label: '📋 التعداد', icon: '📋' }].map(t => (
+        {availableTypes.map(t => (
           <button key={t.key} onClick={() => setReportType(t.key)}
             style={{ padding: '0.6rem 1.2rem', borderRadius: '10px', border: '1px solid', borderColor: reportType === t.key ? 'var(--primary)' : 'rgba(99,102,241,0.2)', background: reportType === t.key ? 'rgba(99,102,241,0.2)' : 'transparent', color: reportType === t.key ? 'var(--primary-light)' : 'var(--gray-light)', cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'inherit', fontWeight: '600', transition: 'all 0.2s' }}>
             {t.label}
           </button>
         ))}
+        {availableTypes.length === 0 && <p style={{ color: 'var(--gray)' }}>ليس لديك صلاحيات لعرض التقارير</p>}
       </div>
 
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
