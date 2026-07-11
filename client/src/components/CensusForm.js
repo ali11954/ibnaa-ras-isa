@@ -339,7 +339,7 @@ export default function CensusForm({ onSave, onCancel, editData }) {
                       updated.gender = v === 'ابن' ? 'ذكر' : 'أنثى';
                     } else if (v === 'زوجة') {
                       updated.gender = 'أنثى';
-                      updated.maritalStatus = 'متزوج';
+                      updated.maritalStatus = 'متزوجة';
                       updated.parentName = '';
                     } else if (v === 'زوج') {
                       updated.gender = 'ذكر';
@@ -390,14 +390,15 @@ export default function CensusForm({ onSave, onCancel, editData }) {
                     </div>
                     {renderDropdown('الحالة الاجتماعية', 'maritalStatus', m.maritalStatus, v => {
                       const updated = { ...m, maritalStatus: v };
-                      if ((v === 'متزوج' || v === 'مزوج') && (isChild)) {
-                        updated.familyStatus = 'متزوج ومستقل';
+                      const isMarried = ['متزوج', 'مزوج', 'متزوجة', 'مزوجة'].includes(v);
+                      if (isMarried) {
+                        updated.gender = updated.gender || (m.relationship === 'ابنة' || m.relationship === 'زوجة' ? 'أنثى' : 'ذكر');
                       }
                       const newMembers = [...members];
                       newMembers[i] = updated;
                       setMembers(newMembers);
                     })}
-                    {(m.maritalStatus === 'متزوج' || m.maritalStatus === 'مزوج') && (
+                    {['متزوج', 'مزوج', 'متزوجة', 'مزوجة'].includes(m.maritalStatus) && (
                       <>
                         <div className="form-group">
                           <label style={labelStyle}>الزوج/ة من:* </label>
