@@ -68,12 +68,13 @@ function Reports() {
       if (!name.includes(s) && !village.includes(s) && !famNum.includes(s)) return false;
     }
     if (filters.region && item.region !== filters.region) return false;
+    if (filters.village && item.village !== filters.village) return false;
     if (filters.profession && item.profession !== filters.profession) return false;
     if (filters.team && String(item.teamNumber) !== String(filters.team)) return false;
     return true;
   });
 
-  const regions = [...new Set(safeData.map(d => d.region).filter(Boolean))];
+  const regions = [...new Set(safeData.map(d => d.region || d.village).filter(Boolean))];
   const professions = [...new Set(safeData.map(d => d.profession).filter(Boolean))];
   const teams = [...new Set(safeData.map(d => d.teamNumber).filter(Boolean))].sort((a, b) => a - b);
 
@@ -87,6 +88,11 @@ function Reports() {
     const income = {}, genderByVillage = {}, housingCond = {}, mainIncome = {};
     const relationships = {}, maritalStatus = {};
     const villageComparison = {};
+    const crossVillage = {
+      educationByVillage: {}, healthByVillage: {}, relationshipsByVillage: {},
+      maritalStatusByVillage: {}, financialByVillage: {}, housingByVillage: {},
+      housingCondByVillage: {}, mainIncomeByVillage: {}, incomeByVillage: {},
+    };
 
     d.forEach(c => {
       totalMale += c.maleCount || 0;
@@ -113,33 +119,23 @@ function Reports() {
       const fKey = c.financialStatus || 'غير محدد';
       vc.financial[fKey] = (vc.financial[fKey] || 0) + 1;
       financial[fKey] = (financial[fKey] || 0) + 1;
+      if (!crossVillage.financialByVillage[fKey]) crossVillage.financialByVillage[fKey] = {};
+      crossVillage.financialByVillage[fKey][v] = (crossVillage.financialByVillage[fKey][v] || 0) + 1;
       const hKey = (c.housing?.housingType) || 'غير محدد';
       vc.housing[hKey] = (vc.housing[hKey] || 0) + 1;
       housing[hKey] = (housing[hKey] || 0) + 1;
+      if (!crossVillage.housingByVillage[hKey]) crossVillage.housingByVillage[hKey] = {};
+      crossVillage.housingByVillage[hKey][v] = (crossVillage.housingByVillage[hKey][v] || 0) + 1;
       const hcKey = (c.housing?.housingCondition) || 'غير محدد';
       vc.housingCond[hcKey] = (vc.housingCond[hcKey] || 0) + 1;
       housingCond[hcKey] = (housingCond[hcKey] || 0) + 1;
+      if (!crossVillage.housingCondByVillage[hcKey]) crossVillage.housingCondByVillage[hcKey] = {};
+      crossVillage.housingCondByVillage[hcKey][v] = (crossVillage.housingCondByVillage[hcKey][v] || 0) + 1;
       const miKey = c.mainIncomeSource || 'غير محدد';
       vc.mainIncome[miKey] = (vc.mainIncome[miKey] || 0) + 1;
       mainIncome[miKey] = (mainIncome[miKey] || 0) + 1;
-      if (c.members && c.members.length > 0) {
-        totalMembers += c.members.length;
-        vc.members += c.members.length;
-        c.members.forEach(m => {
-          const eKey = m.educationLevel || 'غير محدد';
-          vc.education[eKey] = (vc.education[eKey] || 0) + 1;
-          education[eKey] = (education[eKey] || 0) + 1;
-          const hsKey = m.healthStatus || 'غير محدد';
-          vc.health[hsKey] = (vc.health[hsKey] || 0) + 1;
-          health[hsKey] = (health[hsKey] || 0) + 1;
-          const rKey = m.relationship || 'غير محدد';
-          vc.relationships[rKey] = (vc.relationships[rKey] || 0) + 1;
-          relationships[rKey] = (relationships[rKey] || 0) + 1;
-          const msKey = m.maritalStatus || 'غير محدد';
-          vc.maritalStatus[msKey] = (vc.maritalStatus[msKey] || 0) + 1;
-          maritalStatus[msKey] = (maritalStatus[msKey] || 0) + 1;
-        });
-      }
+      if (!crossVillage.mainIncomeByVillage[miKey]) crossVillage.mainIncomeByVillage[miKey] = {};
+      crossVillage.mainIncomeByVillage[miKey][v] = (crossVillage.mainIncomeByVillage[miKey][v] || 0) + 1;
       const inc = c.averageIncome || 0;
       if (inc > 0) {
         let bracket = 'أقل من 50,000';
@@ -149,6 +145,34 @@ function Reports() {
         else if (inc >= 100000) bracket = '100,000 - 200,000';
         else if (inc >= 50000) bracket = '50,000 - 100,000';
         income[bracket] = (income[bracket] || 0) + 1;
+        if (!crossVillage.incomeByVillage[bracket]) crossVillage.incomeByVillage[bracket] = {};
+        crossVillage.incomeByVillage[bracket][v] = (crossVillage.incomeByVillage[bracket][v] || 0) + 1;
+      }
+      if (c.members && c.members.length > 0) {
+        totalMembers += c.members.length;
+        vc.members += c.members.length;
+        c.members.forEach(m => {
+          const eKey = m.educationLevel || 'غير محدد';
+          vc.education[eKey] = (vc.education[eKey] || 0) + 1;
+          education[eKey] = (education[eKey] || 0) + 1;
+          if (!crossVillage.educationByVillage[eKey]) crossVillage.educationByVillage[eKey] = {};
+          crossVillage.educationByVillage[eKey][v] = (crossVillage.educationByVillage[eKey][v] || 0) + 1;
+          const hsKey = m.healthStatus || 'غير محدد';
+          vc.health[hsKey] = (vc.health[hsKey] || 0) + 1;
+          health[hsKey] = (health[hsKey] || 0) + 1;
+          if (!crossVillage.healthByVillage[hsKey]) crossVillage.healthByVillage[hsKey] = {};
+          crossVillage.healthByVillage[hsKey][v] = (crossVillage.healthByVillage[hsKey][v] || 0) + 1;
+          const rKey = m.relationship || 'غير محدد';
+          vc.relationships[rKey] = (vc.relationships[rKey] || 0) + 1;
+          relationships[rKey] = (relationships[rKey] || 0) + 1;
+          if (!crossVillage.relationshipsByVillage[rKey]) crossVillage.relationshipsByVillage[rKey] = {};
+          crossVillage.relationshipsByVillage[rKey][v] = (crossVillage.relationshipsByVillage[rKey][v] || 0) + 1;
+          const msKey = m.maritalStatus || 'غير محدد';
+          vc.maritalStatus[msKey] = (vc.maritalStatus[msKey] || 0) + 1;
+          maritalStatus[msKey] = (maritalStatus[msKey] || 0) + 1;
+          if (!crossVillage.maritalStatusByVillage[msKey]) crossVillage.maritalStatusByVillage[msKey] = {};
+          crossVillage.maritalStatusByVillage[msKey][v] = (crossVillage.maritalStatusByVillage[msKey][v] || 0) + 1;
+        });
       }
     });
 
@@ -157,7 +181,7 @@ function Reports() {
       avgIncome: incomeCount > 0 ? Math.round(totalIncome / incomeCount) : 0,
       totalIncome, incomeCount, totalMarried, totalDeceased, totalMembers, totalMigrants,
       villages, financial, housing, housingCond, mainIncome, education, health,
-      income, genderByVillage, relationships, maritalStatus, villageComparison,
+      income, genderByVillage, relationships, maritalStatus, villageComparison, crossVillage,
       avgFamilySize: d.length > 0 ? Math.round(totalPopulation / d.length) : 0,
     };
   })();
@@ -172,15 +196,6 @@ function Reports() {
     if (reportType === 'census' && censusStats) {
       return [
         buildChart(censusStats.villages, 'التوزيع حسب القرية'),
-        buildChart(censusStats.financial, 'الحالة المادية'),
-        buildChart(censusStats.housing, 'نوع السكن'),
-        buildChart(censusStats.housingCond, 'حالة السكن'),
-        buildChart(censusStats.mainIncome, 'مصدر الدخل الرئيسي'),
-        buildChart(censusStats.education, 'المستوى التعليمي'),
-        buildChart(censusStats.health, 'الحالة الصحية'),
-        buildChart(censusStats.relationships, 'صلى القرابة'),
-        buildChart(censusStats.maritalStatus, 'الحالة الاجتماعية'),
-        buildChart(censusStats.income, 'مستويات الدخل'),
       ];
     }
     if (reportType === 'workers') {
@@ -191,6 +206,77 @@ function Reports() {
     const tc = {}; filtered.forEach(f => { tc[`فرقة ${f.teamNumber}`] = (tc[`فرقة ${f.teamNumber}`] || 0) + 1; });
     return [buildChart(tc, 'التوزيع حسب الفرق')];
   })();
+
+  const villageNames = censusStats ? Object.keys(censusStats.villages).sort() : [];
+  const VILLAGE_COLORS = ['#6366f1', '#ec4899', '#06b6d4', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#14b8a6', '#f97316', '#64748b', '#e11d48', '#0ea5e9'];
+
+  const crossVillageChart = (title, crossData, icon) => {
+    const categories = Object.keys(crossData).sort((a, b) => {
+      const totalA = Object.values(crossData[a]).reduce((s, v) => s + v, 0);
+      const totalB = Object.values(crossData[b]).reduce((s, v) => s + v, 0);
+      return totalB - totalA;
+    });
+    const allVillageNames = [...new Set(categories.flatMap(c => Object.keys(crossData[c])))].sort();
+    const grandMax = Math.max(...categories.flatMap(c => allVillageNames.map(v => crossData[c][v] || 0)), 1);
+    return (
+      <div className="chart-card" style={{ marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+          <span style={{ fontSize: '1.3rem' }}>{icon}</span>
+          <h3 style={{ margin: 0 }}>{title}</h3>
+          <span style={{ fontSize: '0.7rem', color: 'var(--gray)', background: 'rgba(99,102,241,0.08)', padding: '0.2rem 0.6rem', borderRadius: '10px' }}>{categories.length} فئة — {allVillageNames.length} قرية</span>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.8rem' }}>
+          {allVillageNames.map((v, i) => (
+            <span key={v} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', padding: '0.2rem 0.5rem', borderRadius: '6px', background: `${VILLAGE_COLORS[i % VILLAGE_COLORS.length]}15`, border: `1px solid ${VILLAGE_COLORS[i % VILLAGE_COLORS.length]}30` }}>
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: VILLAGE_COLORS[i % VILLAGE_COLORS.length], display: 'inline-block' }} />
+              {v}
+            </span>
+          ))}
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.78rem' }}>
+            <thead>
+              <tr>
+                <th style={{ position: 'sticky', right: 0, background: 'rgba(15,23,42,0.95)', padding: '0.5rem 0.8rem', textAlign: 'right', fontWeight: '700', color: 'var(--gray-light)', borderBottom: '2px solid rgba(99,102,241,0.2)', zIndex: 2, minWidth: '100px' }}>{title.replace('📊 ', '').replace('📈 ', '').replace('🏥 ', '').replace('💍 ', '').replace('🏠 ', '').replace('💰 ', '').replace('👨‍👩‍👧‍👦 ', '').replace('❤️ ', '')}</th>
+                {allVillageNames.map((v, i) => (
+                  <th key={v} style={{ padding: '0.5rem 0.6rem', textAlign: 'center', fontWeight: '700', color: VILLAGE_COLORS[i % VILLAGE_COLORS.length], borderBottom: '2px solid rgba(99,102,241,0.2)', minWidth: '65px' }}>{v}</th>
+                ))}
+                <th style={{ padding: '0.5rem 0.6rem', textAlign: 'center', fontWeight: '700', color: '#fff', borderBottom: '2px solid rgba(99,102,241,0.2)', background: 'rgba(99,102,241,0.15)', minWidth: '50px' }}>الإجمالي</th>
+              </tr>
+            </thead>
+            <tbody>
+              {categories.map((cat, ci) => {
+                const rowTotal = allVillageNames.reduce((s, v) => s + (crossData[cat][v] || 0), 0);
+                return (
+                  <tr key={cat} style={{ background: ci % 2 === 0 ? 'rgba(99,102,241,0.02)' : 'transparent' }}>
+                    <td style={{ padding: '0.5rem 0.8rem', fontWeight: '700', position: 'sticky', right: 0, background: ci % 2 === 0 ? 'rgba(15,23,42,0.97)' : 'rgba(15,23,42,0.92)', zIndex: 1, borderBottom: '1px solid rgba(99,102,241,0.08)' }}>{cat}</td>
+                    {allVillageNames.map((v, vi) => {
+                      const val = crossData[cat][v] || 0;
+                      const pct = rowTotal > 0 ? Math.round((val / rowTotal) * 100) : 0;
+                      return (
+                        <td key={v} style={{ padding: '0.4rem 0.6rem', textAlign: 'center', borderBottom: '1px solid rgba(99,102,241,0.08)' }}>
+                          {val > 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                              <span style={{ fontWeight: '800', color: VILLAGE_COLORS[vi % VILLAGE_COLORS.length], fontSize: '0.85rem' }}>{val}</span>
+                              <div style={{ width: '90%', height: '6px', background: 'rgba(99,102,241,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
+                                <div style={{ width: `${pct}%`, height: '100%', background: VILLAGE_COLORS[vi % VILLAGE_COLORS.length], borderRadius: '3px' }} />
+                              </div>
+                              <span style={{ fontSize: '0.6rem', color: 'var(--gray)' }}>{pct}%</span>
+                            </div>
+                          ) : <span style={{ color: 'var(--gray)', fontSize: '0.7rem' }}>—</span>}
+                        </td>
+                      );
+                    })}
+                    <td style={{ padding: '0.5rem 0.6rem', textAlign: 'center', fontWeight: '800', background: 'rgba(99,102,241,0.08)', borderBottom: '1px solid rgba(99,102,241,0.08)', color: '#fff' }}>{rowTotal}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
 
   const inputStyle = { padding: '0.5rem 0.8rem', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', color: 'white', fontFamily: 'inherit', fontSize: '0.85rem' };
 
@@ -331,6 +417,12 @@ function Reports() {
 
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
         <input type="text" placeholder="بحث بالاسم، القرية، رقم الأسرة..." value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: '150px' }} />
+        {reportType === 'census' && (
+          <select value={filters.village || ''} onChange={e => setFilters({ ...filters, village: e.target.value })} style={{ ...inputStyle, minWidth: '120px' }}>
+            <option value="">جميع القرى</option>
+            {regions.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+        )}
         {reportType === 'workers' && <>
           <select value={filters.region} onChange={e => setFilters({ ...filters, region: e.target.value })} style={inputStyle}><option value="">جميع المناطق</option>{regions.map(r => <option key={r} value={r}>{r}</option>)}</select>
           <select value={filters.profession} onChange={e => setFilters({ ...filters, profession: e.target.value })} style={inputStyle}><option value="">جميع المهن</option>{professions.map(p => <option key={p} value={p}>{p}</option>)}</select>
@@ -535,6 +627,20 @@ function Reports() {
                   );
                 })}
               </div>
+            </>
+          )}
+
+          {reportType === 'census' && censusStats && (
+            <>
+              {crossVillageChart('📊 المستوى التعليمي حسب القرية', censusStats.crossVillage.educationByVillage, '🎓')}
+              {crossVillageChart('❤️ الحالة الصحية حسب القرية', censusStats.crossVillage.healthByVillage, '🏥')}
+              {crossVillageChart('👨‍👩‍👧 صلة القرابة حسب القرية', censusStats.crossVillage.relationshipsByVillage, '🔗')}
+              {crossVillageChart('💍 الحالة الاجتماعية حسب القرية', censusStats.crossVillage.maritalStatusByVillage, '💒')}
+              {crossVillageChart('📊 الحالة المادية حسب القرية', censusStats.crossVillage.financialByVillage, '💰')}
+              {crossVillageChart('🏠 نوع السكن حسب القرية', censusStats.crossVillage.housingByVillage, '🏘️')}
+              {crossVillageChart('🏠 حالة السكن حسب القرية', censusStats.crossVillage.housingCondByVillage, '🏗️')}
+              {crossVillageChart('💰 مصدر الدخل الرئيسي حسب القرية', censusStats.crossVillage.mainIncomeByVillage, '💵')}
+              {crossVillageChart('💰 مستويات الدخل حسب القرية', censusStats.crossVillage.incomeByVillage, '📈')}
             </>
           )}
 
