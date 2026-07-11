@@ -6,7 +6,8 @@ import { toast } from 'react-toastify';
 const COLORS = ['#6366f1', '#ec4899', '#06b6d4', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#14b8a6', '#f97316', '#64748b', '#e11d48', '#0ea5e9'];
 
 function Reports() {
-  const { token, isAdmin, hasPermission } = useAuth();
+  const { token, user, isAdmin, hasPermission } = useAuth();
+  const canExport = isAdmin || user?.username === 'esa';
   const [reportType, setReportType] = useState('');
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -310,8 +311,8 @@ function Reports() {
       </div>
 
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', alignItems: 'center' }}>
-        <button className="btn-export" onClick={exportPDF}>📄 تصدير PDF</button>
-        <button className="btn-export" onClick={exportExcel}>📊 تصدير Excel</button>
+        {canExport && <button className="btn-export" onClick={exportPDF}>📄 تصدير PDF</button>}
+        {canExport && <button className="btn-export" onClick={exportExcel}>📊 تصدير Excel</button>}
         <button className="btn-primary" onClick={doRefresh} style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>🔄 تحديث البيانات</button>
         <span style={{ marginRight: 'auto', color: 'var(--gray)', fontSize: '0.85rem' }}>{filtered.length} سجل — آخر تحديث: {new Date().toLocaleTimeString('ar-SA')}</span>
       </div>

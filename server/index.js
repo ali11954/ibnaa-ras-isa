@@ -237,6 +237,12 @@ function adminMiddleware(req, res, next) {
   next();
 }
 
+function esaOrAdminMiddleware(req, res, next) {
+  if (!req.user) return res.status(403).json({ error: "Not authorized" });
+  if (req.user.role === "admin" || req.user.username === "esa") return next();
+  return res.status(403).json({ error: "فقط المستخدم esa يمكنه تنفيذ هذا الإجراء" });
+}
+
 async function subscriberMiddleware(req, res, next) {
   if (req.user && req.user.role === "admin") return next();
   try {
@@ -1142,7 +1148,7 @@ app.put("/api/census/:id", authMiddleware, subscriberMiddleware, async (req, res
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete("/api/census/:id", authMiddleware, subscriberMiddleware, async (req, res) => {
+app.delete("/api/census/:id", authMiddleware, esaOrAdminMiddleware, async (req, res) => {
   try {
     await Census.findByIdAndDelete(req.params.id);
     res.json({ message: "Deleted" });
@@ -1223,7 +1229,7 @@ app.delete("/api/census-lists/:key", authMiddleware, adminMiddleware, async (req
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get("/api/export/census", authMiddleware, subscriberMiddleware, async (req, res) => {
+app.get("/api/export/census", authMiddleware, esaOrAdminMiddleware, async (req, res) => {
   try {
     const { format } = req.query;
     const data = await Census.find().sort({ createdAt: -1 });
