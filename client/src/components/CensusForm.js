@@ -55,7 +55,11 @@ export default function CensusForm({ onSave, onCancel, editData }) {
     visitDate: editData?.visitDate || new Date().toISOString().split('T')[0],
   });
   const [members, setMembers] = useState(editData?.members || []);
-  const [housing, setHousing] = useState(editData?.housing || { housingType: '', ownership: '', moveDate: '', rooms: 0, electricity: '', water: '', sewage: '', internet: '', gas: '', housingNotes: '' });
+  const [housing, setHousing] = useState(() => {
+    const defaults = { housingType: '', ownership: '', moveDate: '', rooms: 0, electricity: '', water: '', sewage: '', internet: '', gas: '', housingNotes: '' };
+    if (editData?.housing) return { ...defaults, ...editData.housing };
+    return defaults;
+  });
   const [migration, setMigration] = useState(editData?.migration || []);
   const [diseases, setDiseases] = useState(editData?.diseases || []);
   const [saving, setSaving] = useState(false);
@@ -127,7 +131,8 @@ export default function CensusForm({ onSave, onCancel, editData }) {
     setSaving(true);
     try {
       if (censusId) {
-        await axios.put(`/api/census/${censusId}`, { ...family, housing }, { headers });
+        const hasHousing = housing && Object.values(housing).some(v => v && v !== '' && v !== 0);
+        await axios.put(`/api/census/${censusId}`, { ...family, ...(hasHousing ? { housing } : {}) }, { headers });
       } else {
         const res = await axios.post('/api/census', { ...family, members, housing, migration, diseases }, { headers });
         setCensusId(res.data._id);
