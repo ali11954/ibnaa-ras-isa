@@ -386,6 +386,71 @@ async function seedExcelToMongo() {
   }
 }
 
+async function seedCensusData() {
+  const censusCount = await Census.countDocuments();
+  if (censusCount > 0) {
+    console.log(`MongoDB already has ${censusCount} census records — skipping seed`);
+    return;
+  }
+  try {
+    await Census.create({
+      formNumber: 'EST-001',
+      familyNumber: 'FAM-001',
+      visitDate: '2026-07-01',
+      researcherName: 'محمد علي',
+      governorate: 'حجة',
+      directorate: 'الصليف',
+      isolation: 'راس عيسى',
+      village: 'راس عيسى',
+      neighborhood: 'حي السلام',
+      street: 'شارع المعلم',
+      houseNumber: '15',
+      headName: 'احمد محمد علي',
+      phone: '771234567',
+      currentFamilySize: 8,
+      previousFamilySize: 10,
+      maleCount: 5,
+      femaleCount: 3,
+      marriedCount: 2,
+      deceasedCount: 1,
+      migrantCount: 1,
+      migrationDestination: 'الرياض',
+      residenceDate: '2005',
+      previousResidence: 'الصليف',
+      previousGovernorate: 'حجة',
+      previousDirectorate: 'الصليف',
+      housingType: 'شقة',
+      housingCondition: 'متوسط',
+      mainIncomeSource: 'العمل اليومي',
+      otherIncomeSources: 'المساعدات',
+      averageIncome: 50000,
+      financialStatus: 'ضعيف',
+      notes: 'أسرة محتاجة - الأب يعمل في النشاط اليومي',
+      members: [
+        { seq: 1, name: 'احمد محمد علي', gender: 'ذكر', age: 52, relationship: 'رب الأسرة', parentName: 'محمد علي', maritalStatus: 'متزوج', educationLevel: 'ابتدائي', work: 'عامل يومي', memberIncome: 30000, healthStatus: 'سليم', chronicDisease: 'ضغط الدم' },
+        { seq: 2, name: 'فاطمة حسين', gender: 'أنثى', age: 48, relationship: 'الزوجة', parentName: 'حسين احمد', maritalStatus: 'متزوج', educationLevel: 'أمي', work: 'عمل منزلي', healthStatus: 'سليم' },
+        { seq: 3, name: 'علي احمد', gender: 'ذكر', age: 25, relationship: 'ابن', parentName: 'احمد محمد علي', maritalStatus: 'متزوج', educationLevel: 'متوسط', work: 'عامل', memberIncome: 20000, healthStatus: 'سليم' },
+        { seq: 4, name: 'حسين احمد', gender: 'ذكر', age: 22, relationship: 'ابن', parentName: 'احمد محمد علي', maritalStatus: 'أعزب', educationLevel: 'ثانوي', work: 'طالب', healthStatus: 'سليم' },
+        { seq: 5, name: 'زينب احمد', gender: 'أنثى', age: 20, relationship: 'ابنة', parentName: 'احمد محمد علي', maritalStatus: 'أعزب', educationLevel: 'ثانوي', healthStatus: 'سليم' },
+        { seq: 6, name: 'مريم احمد', gender: 'أنثى', age: 16, relationship: 'ابنة', parentName: 'احمد محمد علي', maritalStatus: 'أعزب', educationLevel: 'متوسط', healthStatus: 'سليم' },
+        { seq: 7, name: 'يوسف احمد', gender: 'ذكر', age: 12, relationship: 'ابن', parentName: 'احمد محمد علي', maritalStatus: 'أعزب', educationLevel: 'ابتدائي', healthStatus: 'مريض', chronicDisease: 'ربو' },
+        { seq: 8, name: 'خديجة احمد', gender: 'أنثى', age: 8, relationship: 'ابنة', parentName: 'احمد محمد علي', maritalStatus: 'أعزب', educationLevel: 'ابتدائي', healthStatus: 'سليم' },
+      ],
+      housing: { type: 'شقة', ownership: 'إيجار', moveDate: '2005', rooms: 3, electricity: 'نعم', water: 'نعم', sewage: 'نعم', internet: 'لا', gas: 'لا', housingNotes: 'شقة مستأجرة - 3 غرف وصالة ومطبخ' },
+      migration: [
+        { migName: 'عبدالرحمن احمد', departureDate: '2020', migDestination: 'الرياض', migReason: 'العمل', insideYemen: 'خارج اليمن', country: 'السعودية' },
+      ],
+      diseases: [
+        { disName: 'احمد محمد علي', chronicDisease: 'ضغط الدم', needsTreatment: 'نعم' },
+        { disName: 'يوسف احمد', chronicDisease: 'ربو', needsTreatment: 'نعم' },
+      ],
+    });
+    console.log('Seeded 1 sample census family');
+  } catch (e) {
+    console.error('Census seed error:', e.message);
+  }
+}
+
 // ─── Auth Routes ────────────────────────────────────────────────────────────
 app.post("/api/auth/login", async (req, res) => {
   try {
@@ -1003,6 +1068,7 @@ async function start() {
     console.log("Connected to MongoDB Atlas");
 
     await seedExcelToMongo();
+    await seedCensusData();
 
     const adminExists = await User.findOne({ role: "admin" });
     if (!adminExists) {
