@@ -51,6 +51,17 @@ body { font-family: 'Tajawal', sans-serif; background: var(--dark); color: var(-
 .switch-text { text-align: center; margin-top: 1rem; font-size: 0.85rem; color: var(--gray-light); }
 .link-btn { background: none; border: none; color: var(--primary-light); cursor: pointer; font-family: inherit; font-weight: 600; margin-right: 0.3rem; }
 .note-text { text-align: center; font-size: 0.75rem; color: var(--gray); margin-top: 0.5rem; }
+.modal-wide { max-width: 640px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.form-grid .form-group { margin-bottom: 0; }
+@media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+
+/* COLUMNS PANEL */
+.columns-panel { background: var(--dark-light); border: 1px solid rgba(99,102,241,0.15); border-radius: var(--radius); padding: 1rem 1.5rem; margin-bottom: 1rem; }
+.columns-panel h4 { font-size: 0.9rem; color: var(--gray-light); margin-bottom: 0.75rem; }
+.columns-grid { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.col-toggle { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--gray-light); cursor: pointer; }
+.col-toggle input[type="checkbox"] { accent-color: var(--primary); width: 16px; height: 16px; }
 
 /* HERO */
 .hero { min-height: 60vh; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; padding: 6rem 2rem 3rem; }

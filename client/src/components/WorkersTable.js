@@ -3,6 +3,16 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 
+const DEFAULT_COLUMNS = {
+  name: true, nationalId: true, age: true, ageGroup: true, region: true,
+  birthPlace: true, profession: true, teamNumber: true, note: true,
+};
+
+const COL_LABELS = {
+  name: 'الاسم', nationalId: 'الرقم الوطني', age: 'العمر', ageGroup: 'الفئة',
+  region: 'المنطقة', birthPlace: 'الميلاد', profession: 'المهنة', teamNumber: 'الفرقة', note: 'ملاحظة',
+};
+
 const WorkersTable = () => {
   const { token, isAdmin } = useAuth();
   const [workers, setWorkers] = useState([]);
@@ -20,7 +30,20 @@ const WorkersTable = () => {
   const [transferLog, setTransferLog] = useState([]);
   const [showLog, setShowLog] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
-  const [newWorker, setNewWorker] = useState({ name:'', nationalId:'', age:'', region:'', birthPlace:'', currentPlace:'', profession:'', teamNumber:'', note:'', ageGroup:'' });
+  const [showCols, setShowCols] = useState(false);
+  const [columns, setColumns] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('workerCols')) || { ...DEFAULT_COLUMNS }; }
+    catch { return { ...DEFAULT_COLUMNS }; }
+  });
+  const [newWorker, setNewWorker] = useState({
+    name:'', nationalId:'', birthYear:'', age:'', ageGroup:'',
+    region:'', birthPlace:'', currentPlace:'', profession:'',
+    teamNumber:'', note:''
+  });
+
+  useEffect(() => { localStorage.setItem('workerCols', JSON.stringify(columns)); }, [columns]);
+
+  const toggleCol = (key) => setColumns(prev => ({ ...prev, [key]: !prev[key] }));
 
   const fetchWorkers = useCallback(async () => {
     if (!token) { setBlocked(true); return; }
@@ -48,18 +71,30 @@ const WorkersTable = () => {
       toast.success(`تم نقل ${transferWorker.name} من فرقة ${transferWorker.teamNumber} إلى فرقة ${transferTo}`);
       setTransferWorker(null); setTransferTo('');
       fetchWorkers();
-    } catch (err) { toast.error('خطأ في النقل'); }
+    } catch (err) { toast.error(err.response?.data?.error || 'خطأ في النقل'); }
   };
 
   const handleAddWorker = async () => {
-    if (!newWorker.name || !newWorker.teamNumber) { toast.error('أدخل الاسم والفرقة'); return; }
+    if (!newWorker.name || !newWorker.teamNumber) { toast.error('أدخل الاسم ورقم الفرقة'); return; }
     try {
-      await axios.post('/api/workers', { ...newWorker, age: parseInt(newWorker.age), teamNumber: parseInt(newWorker.teamNumber) }, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.post('/api/workers', {
+        name: newWorker.name,
+        nationalId: newWorker.nationalId,
+        birthYear: parseInt(newWorker.birthYear) || 0,
+        age: parseInt(newWorker.age) || 30,
+        ageGroup: newWorker.ageGroup,
+        region: newWorker.region,
+        birthPlace: newWorker.birthPlace,
+        currentPlace: newWorker.currentPlace,
+        profession: newWorker.profession,
+        teamNumber: parseInt(newWorker.teamNumber),
+        note: newWorker.note,
+      }, { headers: { Authorization: `Bearer ${token}` } });
       toast.success('تمت إضافة العامل');
       setShowAdd(false);
-      setNewWorker({ name:'', nationalId:'', age:'', region:'', birthPlace:'', currentPlace:'', profession:'', teamNumber:'', note:'', ageGroup:'' });
+      setNewWorker({ name:'', nationalId:'', birthYear:'', age:'', ageGroup:'', region:'', birthPlace:'', currentPlace:'', profession:'', teamNumber:'', note:'' });
       fetchWorkers();
-    } catch (err) { toast.error('خطأ في الإضافة'); }
+    } catch (err) { toast.error(err.response?.data?.error || 'خطأ في الإضافة'); }
   };
 
   const handleDeleteWorker = async (id, name) => {
@@ -79,13 +114,19 @@ const WorkersTable = () => {
   };
 
   const handleExportPDF = () => {
+    const visibleCols = Object.keys(columns).filter(k => columns[k]);
+    const colHeaders = visibleCols.map(k => COL_LABELS[k] || k).join('</th><th>');
+    const colCells = (w) => visibleCols.map(k => {
+      if (k === 'teamNumber') return `<td>الفرقة ${w[k]}</td>`;
+      return `<td>${w[k] || ''}</td>`;
+    }).join('');
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`<html><head><title>كشف العمال</title>
       <style>body{font-family:Arial,sans-serif;direction:rtl;padding:20px}table{width:100%;border-collapse:collapse;margin-top:10px}th,td{border:1px solid #333;padding:6px 8px;text-align:right;font-size:11px}th{background:#eee;font-weight:bold}h2{text-align:center}</style></head><body>
       <h2>ابناء راس عيسى - كشف العمال</h2>
-      <p>إجمالي العمال: ${workers.length} | الصفحة ${page} من ${pagination.totalPages || 1}</p>
-      <table><tr><th>#</th><th>الاسم</th><th>الرقم الوطني</th><th>العمر</th><th>الفئة</th><th>المنطقة</th><th>الميلاد</th><th>المهنة</th><th>الفرقة</th><th>ملاحظة</th></tr>
-      ${workers.map((w,i)=>`<tr><td>${(page-1)*26+i+1}</td><td>${w.name}</td><td>${w.nationalId}</td><td>${w.age}</td><td>${w.ageGroup}</td><td>${w.region}</td><td>${w.birthPlace}</td><td>${w.profession}</td><td>${w.teamNumber}</td><td>${w.note}</td></tr>`).join('')}
+      <p>إجمالي العمال: ${pagination.total || 0} | الصفحة ${page} من ${pagination.totalPages || 1}</p>
+      <table><tr><th>#</th><th>${colHeaders}</th></tr>
+      ${workers.map((w,i)=>`<tr><td>${(page-1)*26+i+1}</td>${colCells(w)}</tr>`).join('')}
       </table></body></html>`);
     printWindow.document.close(); printWindow.print();
   };
@@ -117,6 +158,8 @@ const WorkersTable = () => {
     </div>
   );
 
+  const visCols = Object.keys(columns).filter(k => columns[k]);
+
   return (
     <div className="tab-section">
       <div className="section-header">
@@ -146,9 +189,24 @@ const WorkersTable = () => {
           {isAdmin && <button className="btn-export" onClick={() => setShowAdd(true)}>➕ إضافة عامل</button>}
           <button className="btn-export" onClick={handleExportPDF}>📄 PDF</button>
           <button className="btn-export" onClick={handleExportExcel}>📊 Excel</button>
+          <button className="btn-export" onClick={() => setShowCols(!showCols)}>👁️ الأعمدة</button>
           {isAdmin && <button className="btn-export" onClick={() => { setShowLog(!showLog); fetchTransferLog(); }}>📋 سجل النقل</button>}
         </div>
       </div>
+
+      {showCols && (
+        <div className="columns-panel">
+          <h4>إظهار/إخفاء الأعمدة:</h4>
+          <div className="columns-grid">
+            {Object.keys(DEFAULT_COLUMNS).map(key => (
+              <label key={key} className="col-toggle">
+                <input type="checkbox" checked={columns[key]} onChange={() => toggleCol(key)} />
+                <span>{COL_LABELS[key]}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       {showLog && (
         <div className="transfer-log-panel">
@@ -174,19 +232,31 @@ const WorkersTable = () => {
         <>
           <div className="table-container">
             <table className="data-table">
-              <thead><tr><th>#</th><th>الاسم</th><th>الرقم الوطني</th><th>العمر</th><th>الفئة</th><th>المنطقة</th><th>الميلاد</th><th>المهنة</th><th>الفرقة</th><th>ملاحظة</th><th>الإجراءات</th></tr></thead>
+              <thead><tr>
+                <th>#</th>
+                {columns.name && <th>الاسم</th>}
+                {columns.nationalId && <th>الرقم الوطني</th>}
+                {columns.age && <th>العمر</th>}
+                {columns.ageGroup && <th>الفئة</th>}
+                {columns.region && <th>المنطقة</th>}
+                {columns.birthPlace && <th>الميلاد</th>}
+                {columns.profession && <th>المهنة</th>}
+                {columns.teamNumber && <th>الفرقة</th>}
+                {columns.note && <th>ملاحظة</th>}
+                <th>الإجراءات</th>
+              </tr></thead>
               <tbody>{workers.map((w, i) => (
                 <tr key={w._id || i}>
                   <td>{(page-1)*26+i+1}</td>
-                  <td className="name-cell">{w.name}</td>
-                  <td><code>{w.nationalId}</code></td>
-                  <td>{w.age}</td>
-                  <td><span className="badge badge-blue">{w.ageGroup}</span></td>
-                  <td><span className="badge badge-green">{w.region}</span></td>
-                  <td>{w.birthPlace}</td>
-                  <td><span className="badge badge-purple">{w.profession}</span></td>
-                  <td><span className="badge badge-orange">الفرقة {w.teamNumber}</span></td>
-                  <td><span className="badge badge-orange">{w.note}</span></td>
+                  {columns.name && <td className="name-cell">{w.name}</td>}
+                  {columns.nationalId && <td><code>{w.nationalId}</code></td>}
+                  {columns.age && <td>{w.age}</td>}
+                  {columns.ageGroup && <td><span className="badge badge-blue">{w.ageGroup}</span></td>}
+                  {columns.region && <td><span className="badge badge-green">{w.region}</span></td>}
+                  {columns.birthPlace && <td>{w.birthPlace}</td>}
+                  {columns.profession && <td><span className="badge badge-purple">{w.profession}</span></td>}
+                  {columns.teamNumber && <td><span className="badge badge-orange">الفرقة {w.teamNumber}</span></td>}
+                  {columns.note && <td><span className="badge badge-orange">{w.note}</span></td>}
                   <td>
                     {isAdmin && <button className="btn-members" onClick={() => setTransferWorker(w)} style={{fontSize:'0.7rem'}}>نقل</button>}
                     {isAdmin && <button className="btn-reject" onClick={() => handleDeleteWorker(w._id, w.name)} style={{fontSize:'0.7rem',marginLeft:'4px'}}>حذف</button>}
@@ -212,7 +282,7 @@ const WorkersTable = () => {
             <h3>نقل عامل</h3>
             <div className="transfer-info">
               <p><strong>العامل:</strong> {transferWorker.name}</p>
-              <p><strong>الفرقة:</strong> <span className="badge badge-orange">الفرقة {transferWorker.teamNumber}</span></p>
+              <p><strong>الفرقة الحالية:</strong> <span className="badge badge-orange">الفرقة {transferWorker.teamNumber}</span></p>
             </div>
             <div className="form-group">
               <label>الفرقة الجديدة</label>
@@ -228,22 +298,34 @@ const WorkersTable = () => {
 
       {showAdd && (
         <div className="modal-overlay" onClick={() => setShowAdd(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div className="modal-content modal-wide" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setShowAdd(false)}>✕</button>
             <h3>إضافة عامل جديد</h3>
-            <div className="form-group"><label>الاسم *</label><input value={newWorker.name} onChange={e=>setNewWorker({...newWorker, name:e.target.value})} /></div>
-            <div className="form-group"><label>الرقم الوطني</label><input value={newWorker.nationalId} onChange={e=>setNewWorker({...newWorker, nationalId:e.target.value})} /></div>
-            <div className="form-group"><label>العمر</label><input type="number" value={newWorker.age} onChange={e=>setNewWorker({...newWorker, age:e.target.value})} /></div>
-            <div className="form-group"><label>الفئة العمرية</label><input value={newWorker.ageGroup} onChange={e=>setNewWorker({...newWorker, ageGroup:e.target.value})} placeholder="25-34" /></div>
-            <div className="form-group"><label>المنطقة</label><input value={newWorker.region} onChange={e=>setNewWorker({...newWorker, region:e.target.value})} /></div>
-            <div className="form-group"><label>مكان الميلاد</label><input value={newWorker.birthPlace} onChange={e=>setNewWorker({...newWorker, birthPlace:e.target.value})} /></div>
-            <div className="form-group"><label>المهنة</label><input value={newWorker.profession} onChange={e=>setNewWorker({...newWorker, profession:e.target.value})} /></div>
-            <div className="form-group"><label>رقم الفرقة *</label><select value={newWorker.teamNumber} onChange={e=>setNewWorker({...newWorker, teamNumber:e.target.value})}>
-              <option value="">اختر الفرقة</option>
-              {Array.from({length:30}, (_,i)=>i+1).map(t=><option key={t} value={t}>الفرقة {t}</option>)}
-            </select></div>
-            <div className="form-group"><label>ملاحظة</label><input value={newWorker.note} onChange={e=>setNewWorker({...newWorker, note:e.target.value})} /></div>
-            <button className="btn-primary" style={{width:'100%',justifyContent:'center'}} onClick={handleAddWorker}>إضافة</button>
+            <div className="form-grid">
+              <div className="form-group"><label>الاسم *</label><input value={newWorker.name} onChange={e=>setNewWorker({...newWorker, name:e.target.value})} placeholder="الاسم الكامل" /></div>
+              <div className="form-group"><label>الرقم الوطني</label><input value={newWorker.nationalId} onChange={e=>setNewWorker({...newWorker, nationalId:e.target.value})} placeholder="الرقم الوطني" /></div>
+              <div className="form-group"><label>سنة الميلاد</label><input type="number" value={newWorker.birthYear} onChange={e=>setNewWorker({...newWorker, birthYear:e.target.value})} placeholder="1990" /></div>
+              <div className="form-group"><label>العمر</label><input type="number" value={newWorker.age} onChange={e=>setNewWorker({...newWorker, age:e.target.value})} placeholder="35" /></div>
+              <div className="form-group"><label>الفئة العمرية</label><select value={newWorker.ageGroup} onChange={e=>setNewWorker({...newWorker, ageGroup:e.target.value})}>
+                <option value="">اختر الفئة</option>
+                <option value="18-24">18-24</option>
+                <option value="25-34">25-34</option>
+                <option value="35-44">35-44</option>
+                <option value="45-54">45-54</option>
+                <option value="55-64">55-64</option>
+                <option value="65+">65+</option>
+              </select></div>
+              <div className="form-group"><label>المنطقة</label><input value={newWorker.region} onChange={e=>setNewWorker({...newWorker, region:e.target.value})} placeholder="المنطقة" /></div>
+              <div className="form-group"><label>مكان الميلاد</label><input value={newWorker.birthPlace} onChange={e=>setNewWorker({...newWorker, birthPlace:e.target.value})} placeholder="مكان الميلاد" /></div>
+              <div className="form-group"><label>المكان الحالي</label><input value={newWorker.currentPlace} onChange={e=>setNewWorker({...newWorker, currentPlace:e.target.value})} placeholder="المكان الحالي" /></div>
+              <div className="form-group"><label>المهنة</label><input value={newWorker.profession} onChange={e=>setNewWorker({...newWorker, profession:e.target.value})} placeholder="المهنة" /></div>
+              <div className="form-group"><label>رقم الفرقة *</label><select value={newWorker.teamNumber} onChange={e=>setNewWorker({...newWorker, teamNumber:e.target.value})}>
+                <option value="">اختر الفرقة</option>
+                {Array.from({length:30}, (_,i)=>i+1).map(t=><option key={t} value={t}>الفرقة {t}</option>)}
+              </select></div>
+              <div className="form-group"><label>ملاحظة</label><input value={newWorker.note} onChange={e=>setNewWorker({...newWorker, note:e.target.value})} placeholder="ملاحظة" /></div>
+            </div>
+            <button className="btn-primary" style={{width:'100%',justifyContent:'center',marginTop:'12px'}} onClick={handleAddWorker}>إضافة العامل</button>
           </div>
         </div>
       )}
