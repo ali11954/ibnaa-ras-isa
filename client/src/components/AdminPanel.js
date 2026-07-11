@@ -1,7 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, TAB_IDS, TAB_LABELS } from '../context/AuthContext';
 import axios from 'axios';
+
+const PermissionCheckboxes = ({ selected, onChange }) => (
+  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', margin: '0.5rem 0' }}>
+    {TAB_IDS.map(tab => (
+      <label key={tab} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.78rem', background: 'rgba(99,102,241,0.08)', padding: '0.3rem 0.6rem', borderRadius: '8px', cursor: 'pointer', border: '1px solid', borderColor: selected.includes(tab) ? 'var(--primary)' : 'rgba(99,102,241,0.15)' }}>
+        <input type="checkbox" checked={selected.includes(tab)} onChange={() => {
+          if (selected.includes(tab)) onChange(selected.filter(t => t !== tab));
+          else onChange([...selected, tab]);
+        }} style={{ accentColor: 'var(--primary)' }} />
+        {TAB_LABELS[tab]}
+      </label>
+    ))}
+  </div>
+);
 
 const AdminPanel = () => {
   const { user, isAdmin, token } = useAuth();
@@ -13,6 +27,8 @@ const AdminPanel = () => {
   const [testEmail, setTestEmail] = useState('');
   const [feedbacks, setFeedbacks] = useState([]);
   const [replyText, setReplyText] = useState({});
+  const [userPermissions, setUserPermissions] = useState({});
+  const [subPermissions, setSubPermissions] = useState({});
 
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -27,8 +43,10 @@ const AdminPanel = () => {
       setUsers(uRes.data);
       setSubscribers(sRes.data);
       setFeedbacks(fRes.data);
-      const eRes = await axios.get('/api/email-status');
-      setEmailStatus(eRes.data);
+      try {
+        const eRes = await axios.get('/api/email-config/status', { headers });
+        setEmailStatus(eRes.data);
+      } catch {}
       const pendingFb = fRes.data.filter(f => f.status === 'pending');
       if (pendingFb.length > 0) setTab('feedback');
     } catch (err) {}
@@ -37,19 +55,23 @@ const AdminPanel = () => {
   useEffect(() => { loadData(); }, [loadData]);
 
   const approveUser = async (id) => {
-    await axios.post(`/api/admin/users/${id}/approve`, {}, { headers });
+    const permissions = userPermissions[id] || [];
+    if (permissions.length === 0) { toast.error('اختر صلاحية واحدة على الأقل'); return; }
+    await axios.post(`/api/admin/approve/${id}`, { permissions }, { headers });
     toast.success('تمت الموافقة على المستخدم');
     loadData();
   };
 
   const rejectUser = async (id) => {
-    await axios.post(`/api/admin/users/${id}/reject`, {}, { headers });
+    await axios.post(`/api/admin/reject/${id}`, {}, { headers });
     toast.success('تم رفض المستخدم');
     loadData();
   };
 
   const approveSubscriber = async (id) => {
-    await axios.post(`/api/admin/subscribers/${id}/approve`, {}, { headers });
+    const permissions = subPermissions[id] || [];
+    if (permissions.length === 0) { toast.error('اختر صلاحية واحدة على الأقل'); return; }
+    await axios.post(`/api/subscribers/${id}/approve`, { permissions }, { headers });
     toast.success('تمت الموافقة على الاشتراك');
     loadData();
   };
@@ -70,17 +92,10 @@ const AdminPanel = () => {
 
   const saveEmailConfig = async () => {
     try {
-      await axios.post('/api/admin/email-config', { gmailPass }, { headers });
-      toast.success('تم حفظ الإعدادات! أعد تشغيل الخادم');
+      await axios.post('/api/email-config', { smtpPass: gmailPass }, { headers });
+      toast.success('تم حفظ الإعدادات!');
       loadData();
     } catch (err) { toast.error('خطأ في الحفظ'); }
-  };
-
-  const sendTestEmail = async () => {
-    try {
-      await axios.post('/api/admin/test-email', { to: testEmail || ADMIN_EMAIL }, { headers });
-      toast.success('تم إرسال إيميل تجريبي!');
-    } catch (err) { toast.error(err.response?.data?.error || 'خطأ في الإرسال'); }
   };
 
   if (!isAdmin) return null;
@@ -123,6 +138,10 @@ const AdminPanel = () => {
                     <div className="admin-avatar">{u.name.charAt(0)}</div>
                     <div><strong>{u.name}</strong><span className="admin-email">{u.email || u.username}</span></div>
                   </div>
+                  <div style={{ margin: '0.5rem 0' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--gray-light)' }}>تحديد الصلاحيات:</span>
+                    <PermissionCheckboxes selected={userPermissions[u.id] || []} onChange={(p) => setUserPermissions({ ...userPermissions, [u.id]: p })} />
+                  </div>
                   <div className="admin-card-actions">
                     <button className="btn-approve" onClick={() => approveUser(u.id)}>موافقة</button>
                     <button className="btn-reject" onClick={() => rejectUser(u.id)}>رفض</button>
@@ -137,8 +156,18 @@ const AdminPanel = () => {
               <div className="admin-card approved" key={u.id}>
                 <div className="admin-card-header">
                   <div className="admin-avatar">{u.name.charAt(0)}</div>
-                  <div><strong>{u.name}</strong><span className="admin-email">{u.username} {u.role === 'admin' ? '(مدير)' : ''}</span></div>
+                  <div>
+                    <strong>{u.name}</strong>
+                    <span className="admin-email">{u.username} {u.role === 'admin' ? '(مدير)' : ''}</span>
+                  </div>
                 </div>
+                {u.permissions && u.permissions.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.5rem' }}>
+                    {u.permissions.map(p => (
+                      <span key={p} className="badge badge-blue" style={{ fontSize: '0.7rem' }}>{TAB_LABELS[p] || p}</span>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -162,6 +191,18 @@ const AdminPanel = () => {
                     </div>
                   </div>
                   {s.reason && <p style={{color:'var(--gray-light)',fontSize:'0.85rem',margin:'0.5rem 0'}}>السبب: {s.reason}</p>}
+                  {s.permissions && s.permissions.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', margin: '0.3rem 0' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--gray)' }}>:طلبات الصلاحيات</span>
+                      {s.permissions.map(p => (
+                        <span key={p} className="badge badge-orange" style={{ fontSize: '0.7rem' }}>{TAB_LABELS[p] || p}</span>
+                      ))}
+                    </div>
+                  )}
+                  <div style={{ margin: '0.5rem 0' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--gray-light)' }}>تحديد الصلاحيات:</span>
+                    <PermissionCheckboxes selected={subPermissions[s.id] || s.permissions || []} onChange={(p) => setSubPermissions({ ...subPermissions, [s.id]: p })} />
+                  </div>
                   <div className="admin-card-actions">
                     <button className="btn-approve" onClick={() => approveSubscriber(s.id)}>موافقة</button>
                   </div>
@@ -175,8 +216,18 @@ const AdminPanel = () => {
               <div className="admin-card approved" key={s.id}>
                 <div className="admin-card-header">
                   <div className="admin-avatar green">&#10003;</div>
-                  <div><strong>{s.email}</strong></div>
+                  <div>
+                    <strong>{s.name || s.email}</strong>
+                    <span className="admin-email">{s.email}</span>
+                  </div>
                 </div>
+                {s.permissions && s.permissions.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.5rem' }}>
+                    {s.permissions.map(p => (
+                      <span key={p} className="badge badge-blue" style={{ fontSize: '0.7rem' }}>{TAB_LABELS[p] || p}</span>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -234,30 +285,15 @@ const AdminPanel = () => {
               <span className={`badge ${emailStatus.configured ? 'badge-green' : 'badge-orange'}`}>
                 {emailStatus.configured ? 'مفعل' : 'غير مفعل'}
               </span>
-              <span style={{ marginRight: '0.5rem' }}>البريد: {emailStatus.adminEmail}</span>
             </div>
             <p className="form-subtitle" style={{ margin: '1rem 0' }}>
               لإرسال الإيميلات، تحتاج <b>كلمة مرور تطبيق Gmail</b>:
             </p>
-            <ol style={{ color: 'var(--gray-light)', fontSize: '0.9rem', paddingRight: '1.2rem', marginBottom: '1rem' }}>
-              <li>افتح <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>Google App Passwords</a></li>
-              <li>أنشئ كلمة مرور جديدة باسم "ابناء راس عيسى"</li>
-              <li>انسخ كلمة المرور وضعها هنا</li>
-            </ol>
             <div className="form-group">
               <label>كلمة مرور تطبيق Gmail</label>
               <input type="password" value={gmailPass} onChange={e => setGmailPass(e.target.value)} placeholder="abcdefghijklmnop" />
             </div>
             <button className="btn-primary" onClick={saveEmailConfig}>حفظ الإعدادات</button>
-
-            <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(99,102,241,0.1)' }}>
-              <h4 style={{ marginBottom: '0.8rem' }}>إرسال إيميل تجريبي</h4>
-              <div className="form-group">
-                <label>إرسال إلى</label>
-                <input type="email" value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder={emailStatus.adminEmail} />
-              </div>
-              <button className="btn-primary btn-sm" onClick={sendTestEmail}>إرسال تجريبي</button>
-            </div>
           </div>
         </div>
       )}

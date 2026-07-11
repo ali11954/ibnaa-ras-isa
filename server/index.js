@@ -35,6 +35,7 @@ const userSchema = new mongoose.Schema({
   token: String,
   approved: { type: Boolean, default: false },
   verified: { type: Boolean, default: false },
+  permissions: { type: [String], default: [] },
 }, { timestamps: true });
 
 const feedbackSchema = new mongoose.Schema({
@@ -54,6 +55,7 @@ const subscriberSchema = new mongoose.Schema({
   phone: String,
   reason: String,
   approved: { type: Boolean, default: false },
+  permissions: { type: [String], default: [] },
 }, { timestamps: true });
 
 const workerSchema = new mongoose.Schema({
@@ -391,7 +393,7 @@ app.post("/api/auth/login", async (req, res) => {
     const user = await User.findOne({ username, password: hashPassword(password) });
     if (!user) return res.status(401).json({ error: "Invalid credentials" });
     if (!user.approved) return res.status(403).json({ error: "Account pending approval" });
-    res.json({ token: user.token, user: { username: user.username, role: user.role, name: user.name, email: user.email } });
+    res.json({ token: user.token, user: { username: user.username, role: user.role, name: user.name, email: user.email, permissions: user.permissions || [] } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -408,7 +410,7 @@ app.post("/api/auth/register", async (req, res) => {
 
 app.get("/api/auth/me", authMiddleware, (req, res) => {
   const u = req.user;
-  res.json({ user: { username: u.username, name: u.name, role: u.role, email: u.email, phone: u.phone } });
+  res.json({ user: { username: u.username, name: u.name, role: u.role, email: u.email, phone: u.phone, permissions: u.permissions || [] } });
 });
 
 app.post("/api/auth/forgot-password", async (req, res) => {
@@ -465,7 +467,7 @@ app.post("/api/auth/verify-otp", async (req, res) => {
     if (!user) return res.status(401).json({ error: "Invalid OTP" });
     user.token = crypto.randomBytes(32).toString("hex");
     await user.save();
-    res.json({ token: user.token, user: { username: user.username, role: user.role, name: user.name, email: user.email } });
+    res.json({ token: user.token, user: { username: user.username, role: user.role, name: user.name, email: user.email, permissions: user.permissions || [] } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -477,10 +479,12 @@ app.get("/api/admin/users", authMiddleware, adminMiddleware, async (req, res) =>
 
 app.post("/api/admin/approve/:id", authMiddleware, adminMiddleware, async (req, res) => {
   try {
+    const { permissions = [] } = req.body;
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ error: "Not found" });
     user.approved = true;
     user.role = "user";
+    user.permissions = permissions;
     await user.save();
     res.json({ message: "Approved", user });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -775,10 +779,10 @@ app.get("/api/subscribers", authMiddleware, adminMiddleware, async (req, res) =>
 
 app.post("/api/subscribers/subscribe", async (req, res) => {
   try {
-    const { email, name, phone, reason } = req.body;
+    const { email, name, phone, reason, permissions = [] } = req.body;
     const exists = await Subscriber.findOne({ email });
     if (exists) return res.status(400).json({ error: "Already subscribed" });
-    const sub = await Subscriber.create({ email, name, phone, reason });
+    const sub = await Subscriber.create({ email, name, phone, reason, permissions });
     await sendEmail(email, "Subscription Request", "<p>Your subscription request has been received.</p>");
     res.json({ message: "Subscription request submitted", subscriber: sub });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -786,9 +790,17 @@ app.post("/api/subscribers/subscribe", async (req, res) => {
 
 app.post("/api/subscribers/:id/approve", authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const sub = await Subscriber.findByIdAndUpdate(req.params.id, { approved: true }, { new: true });
+    const { permissions = [] } = req.body;
+    const sub = await Subscriber.findByIdAndUpdate(req.params.id, { approved: true, permissions }, { new: true });
     if (!sub) return res.status(404).json({ error: "Not found" });
-    await sendEmail(sub.email, "Subscription Approved", "<p>Your subscription has been approved!</p>");
+    let user = await User.findOne({ email: sub.email });
+    if (user) {
+      user.approved = true;
+      user.role = "user";
+      user.permissions = permissions;
+      await user.save();
+    }
+    await sendEmail(sub.email, "Subscription Approved", `<p>Your subscription has been approved! You can now log in.</p>`);
     res.json(sub);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

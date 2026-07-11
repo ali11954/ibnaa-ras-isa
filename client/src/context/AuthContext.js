@@ -3,6 +3,17 @@ import axios from 'axios';
 
 const AuthContext = createContext(null);
 
+export const TAB_IDS = ['dashboard', 'workers', 'families', 'citizens', 'feedback', 'subscribe'];
+
+export const TAB_LABELS = {
+  dashboard: 'لوحة التحكم',
+  workers: 'كشف العمال',
+  families: 'كشف المساعدات',
+  citizens: 'إحصاء المواطنين',
+  feedback: 'الملاحظات',
+  subscribe: 'الاشتراك',
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
@@ -38,8 +49,15 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const hasPermission = (tabId) => {
+    if (!user) return false;
+    if (user.role === 'admin') return true;
+    if (!user.permissions || user.permissions.length === 0) return false;
+    return user.permissions.includes(tabId);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, isAdmin: user?.role === 'admin', isApproved: user?.approved || user?.role === 'admin' }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, isAdmin: user?.role === 'admin', isApproved: user?.approved || user?.role === 'admin', hasPermission, permissions: user?.permissions || [] }}>
       {children}
     </AuthContext.Provider>
   );
