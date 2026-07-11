@@ -43,6 +43,12 @@ const AdminPanel = () => {
       setUsers(uRes.data);
       setSubscribers(sRes.data);
       setFeedbacks(fRes.data);
+      const initSubPerms = {};
+      sRes.data.forEach(s => { initSubPerms[s.id] = s.permissions || []; });
+      setSubPermissions(prev => ({ ...initSubPerms, ...prev }));
+      const initUserPerms = {};
+      uRes.data.forEach(u => { initUserPerms[u.id] = u.permissions || []; });
+      setUserPermissions(prev => ({ ...initUserPerms, ...prev }));
       try {
         const eRes = await axios.get('/api/email-config/status', { headers });
         setEmailStatus(eRes.data);
@@ -56,8 +62,10 @@ const AdminPanel = () => {
 
   const approveUser = async (id) => {
     const permissions = userPermissions[id] || [];
-    if (permissions.length === 0) { toast.error('اختر صلاحية واحدة على الأقل'); return; }
-    await axios.post(`/api/admin/approve/${id}`, { permissions }, { headers });
+    const userItem = users.find(u => u.id === id);
+    const finalPerms = permissions.length > 0 ? permissions : (userItem?.permissions || []);
+    if (finalPerms.length === 0) { toast.error('اختر صلاحية واحدة على الأقل'); return; }
+    await axios.post(`/api/admin/approve/${id}`, { permissions: finalPerms }, { headers });
     toast.success('تمت الموافقة على المستخدم');
     loadData();
   };
@@ -70,10 +78,16 @@ const AdminPanel = () => {
 
   const approveSubscriber = async (id) => {
     const permissions = subPermissions[id] || [];
-    if (permissions.length === 0) { toast.error('اختر صلاحية واحدة على الأقل'); return; }
-    await axios.post(`/api/subscribers/${id}/approve`, { permissions }, { headers });
-    toast.success('تمت الموافقة على الاشتراك');
-    loadData();
+    const sub = subscribers.find(s => s.id === id);
+    const finalPerms = permissions.length > 0 ? permissions : (sub?.permissions || []);
+    if (finalPerms.length === 0) { toast.error('اختر صلاحية واحدة على الأقل'); return; }
+    try {
+      await axios.post(`/api/subscribers/${id}/approve`, { permissions: finalPerms }, { headers });
+      toast.success('تمت الموافقة على الاشتراك');
+      loadData();
+    } catch (err) {
+      toast.error('خطأ في الموافقة: ' + (err.response?.data?.error || err.message));
+    }
   };
 
   const replyFeedback = async (id) => {

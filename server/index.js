@@ -987,14 +987,14 @@ app.get("/api/census/:id", authMiddleware, subscriberMiddleware, async (req, res
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post("/api/census", authMiddleware, adminMiddleware, async (req, res) => {
+app.post("/api/census", authMiddleware, subscriberMiddleware, async (req, res) => {
   try {
     const census = await Census.create(req.body);
     res.json(census);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put("/api/census/:id", authMiddleware, adminMiddleware, async (req, res) => {
+app.put("/api/census/:id", authMiddleware, subscriberMiddleware, async (req, res) => {
   try {
     const census = await Census.findByIdAndUpdate(req.params.id, req.body, { new: true });
     res.json(census);
