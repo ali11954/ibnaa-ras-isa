@@ -129,6 +129,7 @@ const CitizensStats = () => {
                   <span>👥 {c.currentFamilySize || 0} أفراد</span>
                   <span>♂️ {c.maleCount || 0} | ♀️ {c.femaleCount || 0}</span>
                   {c.averageIncome > 0 && <span>💰 {c.averageIncome.toLocaleString('ar-SA')} ر.ي</span>}
+                  {c.enteredByName && <span style={{ color: '#10b981' }}>✍️ {c.enteredByName}</span>}
                 </div>
               </div>
               {canManage && (
@@ -156,6 +157,8 @@ const CitizensStats = () => {
                   <div><strong>مصدر الدخل:</strong> {c.mainIncomeSource || '—'}</div>
                   <div><strong>نوع السكن:</strong> {c.housingType || '—'}</div>
                   <div><strong>حالة السكن:</strong> {c.housingCondition || '—'}</div>
+                  {c.enteredByName && <div style={{ color: '#10b981' }}><strong>entered by:</strong> {c.enteredByName}</div>}
+                  {c.lastEditedByName && <div style={{ color: '#f59e0b' }}><strong>آخر تعديل:</strong> {c.lastEditedByName} — {c.lastEditedAt ? new Date(c.lastEditedAt).toLocaleDateString('ar-SA') : '—'}</div>}
                 </div>
                 {c.members && c.members.length > 0 && (
                   <div style={{ marginTop: '1rem' }}>

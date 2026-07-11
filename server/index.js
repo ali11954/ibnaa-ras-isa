@@ -169,6 +169,11 @@ const censusSchema = new mongoose.Schema({
     needsTreatment: String,
     disNotes: String,
   }],
+  enteredBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  enteredByName: String,
+  lastEditedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  lastEditedByName: String,
+  lastEditedAt: Date,
 }, { timestamps: true });
 const Census = mongoose.model("Census", censusSchema);
 
@@ -1112,14 +1117,20 @@ app.post("/api/census", authMiddleware, subscriberMiddleware, async (req, res) =
     const count = await Census.countDocuments();
     const formNumber = `EST-${String(count + 1).padStart(3, '0')}`;
     const familyNumber = `FAM-${String(count + 1).padStart(3, '0')}`;
-    const census = await Census.create({ ...req.body, formNumber, familyNumber });
+    const enteredBy = req.user?._id;
+    const enteredByName = req.user?.name || req.user?.username || '';
+    const census = await Census.create({ ...req.body, formNumber, familyNumber, enteredBy, enteredByName });
     res.json(census);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put("/api/census/:id", authMiddleware, subscriberMiddleware, async (req, res) => {
   try {
-    const census = await Census.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const updateData = { ...req.body };
+    updateData.lastEditedBy = req.user?._id;
+    updateData.lastEditedByName = req.user?.name || req.user?.username || '';
+    updateData.lastEditedAt = new Date();
+    const census = await Census.findByIdAndUpdate(req.params.id, updateData, { new: true });
     res.json(census);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
