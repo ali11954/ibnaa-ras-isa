@@ -659,17 +659,20 @@ function Reports() {
                       work: c.mainIncomeSource || '', memberIncome: c.averageIncome || 0,
                       healthStatus: '', chronicDisease: '', injury: '', disability: '', memberNotes: '',
                       headName: c.headName, village: c.village, familyNumber: c.familyNumber, phone: c.phone,
-                      isHead: true,
+                      isHead: true, isMarriedOut: false,
                     });
                   }
                   if (c.members && c.members.length > 0) {
                     c.members.forEach(m => {
-                      allMembers.push({ ...m, headName: c.headName, village: c.village, familyNumber: c.familyNumber, phone: c.phone, isHead: false });
+                      const isMarriedOut = m.familyStatus === 'متزوج ومستقل';
+                      allMembers.push({ ...m, headName: c.headName, village: c.village, familyNumber: c.familyNumber, phone: c.phone, isHead: false, isMarriedOut });
                     });
                   }
                 });
-                const memberStats = { total: allMembers.length, male: 0, female: 0, children: 0, wives: 0, education: {}, health: {}, relationships: {} };
+                const memberStats = { total: 0, male: 0, female: 0, children: 0, wives: 0, marriedOut: 0, education: {}, health: {}, relationships: {} };
                 allMembers.forEach(m => {
+                  if (m.isMarriedOut) { memberStats.marriedOut++; return; }
+                  memberStats.total++;
                   if (m.gender === 'ذكر') memberStats.male++;
                   else memberStats.female++;
                   if (m.relationship === 'ابن' || m.relationship === 'ابنة') memberStats.children++;
@@ -681,14 +684,14 @@ function Reports() {
                 return (
                   <>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.8rem', marginBottom: '1.5rem' }}>
-                      {statCard('👥', 'إجمالي الأفراد', memberStats.total, '#6366f1')}
+                      {statCard('👥', 'إجمالي الأفراد (محتسب)', memberStats.total, '#6366f1')}
                       {statCard('♂️', 'الذكور', memberStats.male, '#06b6d4')}
                       {statCard('♀️', 'الإناث', memberStats.female, '#ec4899')}
                       {statCard('👶', 'الأبناء', memberStats.children, '#10b981')}
                       {statCard('💍', 'الزوجات', memberStats.wives, '#8b5cf6')}
-                      {statCard('🏥', 'المرضى', allMembers.filter(m => m.healthStatus === 'مريض').length, '#ef4444')}
-                      {statCard('🎓', 'جامعي', allMembers.filter(m => m.educationLevel === 'جامعي').length, '#f59e0b', 'مستوى تعليمي')}
-                      {statCard('💼', ' العاملون', allMembers.filter(m => m.work && m.work.trim()).length, '#14b8a6')}
+                      {statCard('🏠', 'متزوج ومستقل', memberStats.marriedOut, '#f59e0b', 'أسرة جديدة')}
+                      {statCard('🏥', 'المرضى', allMembers.filter(m => !m.isMarriedOut && m.healthStatus === 'مريض').length, '#ef4444')}
+                      {statCard('🎓', 'جامعي', allMembers.filter(m => !m.isMarriedOut && m.educationLevel === 'جامعي').length, '#14b8a6')}
                     </div>
 
                     <div className="chart-card" style={{ marginBottom: '1.5rem' }}>
@@ -707,6 +710,8 @@ function Reports() {
                               <th>نوع الهوية</th>
                               <th>اسم الأب</th>
                               <th>الحالة الاجتماعية</th>
+                              <th>اسم الزوج/ة</th>
+                              <th>حالة العائلة</th>
                               <th>المستوى التعليمي</th>
                               <th>الحالة الصحية</th>
                               <th>العمل</th>
@@ -717,17 +722,19 @@ function Reports() {
                           </thead>
                           <tbody>
                             {allMembers.map((m, i) => (
-                              <tr key={i} style={{ background: m.isHead ? 'rgba(99,102,241,0.1)' : i % 2 === 0 ? 'rgba(99,102,241,0.02)' : 'transparent', fontWeight: m.isHead ? '700' : 'normal' }}>
-                                <td style={{ position: 'sticky', right: 0, background: m.isHead ? 'rgba(30,41,59,0.98)' : i % 2 === 0 ? 'rgba(30,41,59,0.97)' : 'rgba(30,41,59,0.92)', zIndex: 1 }}>{i + 1}</td>
-                                <td style={{ fontWeight: '700' }}>{m.name || '—'}{m.isHead && <span style={{ fontSize: '0.6rem', color: '#6366f1', marginRight: '0.3rem' }}>🏠</span>}</td>
-                                <td><span className={`badge ${m.isHead ? 'badge-green' : m.relationship === 'ابن' || m.relationship === 'ابنة' ? 'badge-blue' : m.relationship === 'زوجة' ? 'badge-green' : 'badge-orange'}`}>{m.relationship || '—'}</span></td>
+                              <tr key={i} style={{ background: m.isHead ? 'rgba(99,102,241,0.1)' : m.isMarriedOut ? 'rgba(245,158,11,0.08)' : i % 2 === 0 ? 'rgba(99,102,241,0.02)' : 'transparent', fontWeight: m.isHead ? '700' : 'normal', opacity: m.isMarriedOut ? 0.7 : 1 }}>
+                                <td style={{ position: 'sticky', right: 0, background: m.isHead ? 'rgba(30,41,59,0.98)' : m.isMarriedOut ? 'rgba(30,41,59,0.95)' : i % 2 === 0 ? 'rgba(30,41,59,0.97)' : 'rgba(30,41,59,0.92)', zIndex: 1 }}>{i + 1}</td>
+                                <td style={{ fontWeight: '700' }}>{m.name || '—'}{m.isHead && <span style={{ fontSize: '0.6rem', color: '#6366f1', marginRight: '0.3rem' }}>🏠</span>}{m.isMarriedOut && <span style={{ fontSize: '0.6rem', color: '#f59e0b', marginRight: '0.3rem' }}>🔗</span>}</td>
+                                <td><span className={`badge ${m.isHead ? 'badge-green' : m.isMarriedOut ? 'badge-orange' : m.relationship === 'ابن' || m.relationship === 'ابنة' ? 'badge-blue' : m.relationship === 'زوجة' ? 'badge-green' : 'badge-orange'}`}>{m.isMarriedOut ? `مرجع — ${m.relationship}` : m.relationship || '—'}</span></td>
                                 <td style={{ color: m.gender === 'ذكر' ? '#06b6d4' : '#ec4899', fontWeight: '700' }}>{m.gender || '—'}</td>
                                 <td>{m.age || '—'}</td>
                                 <td>{m.birthDate || '—'}</td>
                                 <td style={{ fontFamily: 'monospace' }}>{m.nationalId || '—'}</td>
                                 <td>{m.idType || '—'}</td>
                                 <td>{m.parentName || '—'}</td>
-                                <td><span className={`badge ${m.maritalStatus === 'متزوج' ? 'badge-green' : m.maritalStatus === 'أعزب' ? 'badge-blue' : 'badge-orange'}`}>{m.maritalStatus || '—'}</span></td>
+                                <td><span className={`badge ${m.maritalStatus === 'متزوج' || m.maritalStatus === 'مزوج' ? 'badge-green' : m.maritalStatus === 'أعزب' ? 'badge-blue' : 'badge-orange'}`}>{m.maritalStatus || '—'}</span></td>
+                                <td style={{ fontSize: '0.7rem', color: '#ec4899' }}>{m.spouseName || (m.relationship === 'زوجة' ? m.headName : '—')}</td>
+                                <td><span className={`badge ${m.familyStatus === 'متزوج ومستقل' ? 'badge-orange' : 'badge-blue'}`} style={{ fontSize: '0.65rem' }}>{m.isMarriedOut ? '🔗 أسرة جديدة' : m.familyStatus || 'يعيش مع العائلة'}</span></td>
                                 <td><span className={`badge ${m.educationLevel === 'جامعي' ? 'badge-green' : m.educationLevel === 'ثانوي' ? 'badge-blue' : 'badge-orange'}`}>{m.educationLevel || '—'}</span></td>
                                 <td><span className={`badge ${m.healthStatus === 'سليم' ? 'badge-green' : m.healthStatus === 'مريض' ? 'badge-orange' : 'badge-blue'}`}>{m.healthStatus || '—'}</span></td>
                                 <td>{m.work || '—'}</td>

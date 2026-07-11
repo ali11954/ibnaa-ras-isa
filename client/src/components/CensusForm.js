@@ -14,7 +14,7 @@ const emptyFamily = {
   averageIncome: 0, financialStatus: '', notes: '',
 };
 
-const emptyMember = { seq: 1, name: '', gender: '', age: 0, birthDate: '', nationalId: '', idType: '', relationship: '', parentName: '', maritalStatus: '', educationLevel: '', educationStatus: '', work: '', memberIncome: 0, healthStatus: '', chronicDisease: '', injury: '', disability: '', memberNotes: '' };
+const emptyMember = { seq: 1, name: '', gender: '', age: 0, birthDate: '', nationalId: '', idType: '', relationship: '', parentName: '', maritalStatus: '', familyStatus: 'يعيش مع العائلة', newFamilyNumber: '', spouseName: '', educationLevel: '', educationStatus: '', work: '', memberIncome: 0, healthStatus: '', chronicDisease: '', injury: '', disability: '', memberNotes: '' };
 const emptyMigration = { migName: '', departureDate: '', migDestination: '', migReason: '', insideYemen: '', country: '', migNotes: '' };
 const emptyDisease = { disName: '', chronicDisease: '', injuryType: '', disabilityType: '', injuryDate: '', needsTreatment: '', disNotes: '' };
 
@@ -320,7 +320,41 @@ export default function CensusForm({ onSave, onCancel, editData }) {
                         <input style={inputStyle} value={m.parentName} onChange={e => updateMember(i, 'parentName', e.target.value)} />
                       )}
                     </div>
-                    {renderDropdown('الحالة الاجتماعية', 'maritalStatus', m.maritalStatus, v => updateMember(i, 'maritalStatus', v))}
+                    {renderDropdown('الحالة الاجتماعية', 'maritalStatus', m.maritalStatus, v => {
+                      const updated = { ...m, maritalStatus: v };
+                      if ((v === 'متزوج' || v === 'مزوج') && (isChild)) {
+                        updated.familyStatus = 'متزوج ومستقل';
+                      }
+                      const newMembers = [...members];
+                      newMembers[i] = updated;
+                      setMembers(newMembers);
+                    })}
+                    {(m.maritalStatus === 'متزوج' || m.maritalStatus === 'مزوج') && isChild && (
+                      <>
+                        <div className="form-group">
+                          <label style={labelStyle}>اسم الزوج/الزوجة *</label>
+                          <input style={inputStyle} value={m.spouseName || ''} onChange={e => updateMember(i, 'spouseName', e.target.value)} placeholder="الاسم الكامل للزوج/الزوجة" />
+                        </div>
+                        <div className="form-group">
+                          <label style={labelStyle}>حالة العائلة *</label>
+                          <select style={inputStyle} value={m.familyStatus || 'يعيش مع العائلة'} onChange={e => updateMember(i, 'familyStatus', e.target.value)}>
+                            <option value="يعيش مع العائلة">يعيش مع العائلة (لا يُحتسب كأسرة)</option>
+                            <option value="متزوج ومستقل">متزوج ومستقل (أسرة جديدة)</option>
+                          </select>
+                        </div>
+                        {m.familyStatus === 'متزوج ومستقل' && (
+                          <div style={{ gridColumn: 'span 3', padding: '0.6rem', background: 'rgba(16,185,129,0.1)', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.2)', fontSize: '0.78rem' }}>
+                            <div style={{ color: '#10b981', fontWeight: '700', marginBottom: '0.3rem' }}>🏠 سيتم إنشاء أسرة جديدة:</div>
+                            <div style={{ color: 'var(--gray-light)' }}>
+                              • رقم الأسرة: <strong style={{ color: '#10b981' }}>سيتم توليده تلقائيًا</strong> —
+                              رب الأسرة: <strong style={{ color: '#fff' }}>{m.name}</strong> —
+                              الزوجه: <strong style={{ color: '#fff' }}>{m.spouseName || '—'}</strong> —
+                              القرية: <strong style={{ color: '#fff' }}>{family.village}</strong>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
                     {renderDropdown('المستوى التعليمي', 'educationLevel', m.educationLevel, v => updateMember(i, 'educationLevel', v))}
                     {renderDropdown('الحالة التعليمية', 'educationStatus', m.educationStatus, v => updateMember(i, 'educationStatus', v))}
                     <div className="form-group"><label style={labelStyle}>العمل</label><input style={inputStyle} value={m.work} onChange={e => updateMember(i, 'work', e.target.value)} /></div>
