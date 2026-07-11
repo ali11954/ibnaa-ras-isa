@@ -157,8 +157,8 @@ const CitizensStats = () => {
                   <div><strong>المهاجرين:</strong> {c.migrantCount || 0}</div>
                   <div><strong>الحالة المادية:</strong> {c.financialStatus || '—'}</div>
                   <div><strong>مصدر الدخل:</strong> {c.mainIncomeSource || '—'}</div>
-                  <div><strong>نوع السكن:</strong> {c.housingType || '—'}</div>
-                  <div><strong>حالة السكن:</strong> {c.housingCondition || '—'}</div>
+                  <div><strong>نوع السكن:</strong> {c.housing?.housingType || '—'}</div>
+                  <div><strong>حالة السكن:</strong> {c.housing?.housingCondition || '—'}</div>
                   {c.enteredByName && <div style={{ color: '#10b981' }}><strong>entered by:</strong> {c.enteredByName}</div>}
                   {c.lastEditedByName && <div style={{ color: '#f59e0b' }}><strong>آخر تعديل:</strong> {c.lastEditedByName} — {c.lastEditedAt ? new Date(c.lastEditedAt).toLocaleDateString('ar-SA') : '—'}</div>}
                 </div>

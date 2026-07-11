@@ -85,6 +85,7 @@ function Reports() {
     const villages = {}, financial = {}, housing = {}, education = {}, health = {};
     const income = {}, genderByVillage = {}, housingCond = {}, mainIncome = {};
     const relationships = {}, maritalStatus = {};
+    const villageComparison = {};
 
     d.forEach(c => {
       totalMale += c.maleCount || 0;
@@ -99,12 +100,21 @@ function Reports() {
       if (!genderByVillage[v]) genderByVillage[v] = { male: 0, female: 0 };
       genderByVillage[v].male += c.maleCount || 0;
       genderByVillage[v].female += c.femaleCount || 0;
+      if (!villageComparison[v]) villageComparison[v] = { families: 0, population: 0, male: 0, female: 0, married: 0, deceased: 0, totalIncome: 0, incomeCount: 0, members: 0 };
+      villageComparison[v].families += 1;
+      villageComparison[v].population += (c.maleCount || 0) + (c.femaleCount || 0);
+      villageComparison[v].male += c.maleCount || 0;
+      villageComparison[v].female += c.femaleCount || 0;
+      villageComparison[v].married += c.marriedCount || 0;
+      villageComparison[v].deceased += c.deceasedCount || 0;
+      if (c.averageIncome > 0) { villageComparison[v].totalIncome += c.averageIncome; villageComparison[v].incomeCount += 1; }
       financial[c.financialStatus || 'غير محدد'] = (financial[c.financialStatus || 'غير محدد'] || 0) + 1;
-      housing[c.housingType || 'غير محدد'] = (housing[c.housingType || 'غير محدد'] || 0) + 1;
-      housingCond[c.housingCondition || 'غير محدد'] = (housingCond[c.housingCondition || 'غير محدد'] || 0) + 1;
+      housing[(c.housing?.housingType) || 'غير محدد'] = (housing[(c.housing?.housingType) || 'غير محدد'] || 0) + 1;
+      housingCond[(c.housing?.housingCondition) || 'غير محدد'] = (housingCond[(c.housing?.housingCondition) || 'غير محدد'] || 0) + 1;
       mainIncome[c.mainIncomeSource || 'غير محدد'] = (mainIncome[c.mainIncomeSource || 'غير محدد'] || 0) + 1;
       if (c.members && c.members.length > 0) {
         totalMembers += c.members.length;
+        villageComparison[v].members += c.members.length;
         c.members.forEach(m => {
           education[m.educationLevel || 'غير محدد'] = (education[m.educationLevel || 'غير محدد'] || 0) + 1;
           health[m.healthStatus || 'غير محدد'] = (health[m.healthStatus || 'غير محدد'] || 0) + 1;
@@ -129,7 +139,7 @@ function Reports() {
       avgIncome: incomeCount > 0 ? Math.round(totalIncome / incomeCount) : 0,
       totalIncome, incomeCount, totalMarried, totalDeceased, totalMembers, totalMigrants,
       villages, financial, housing, housingCond, mainIncome, education, health,
-      income, genderByVillage, relationships, maritalStatus,
+      income, genderByVillage, relationships, maritalStatus, villageComparison,
       avgFamilySize: d.length > 0 ? Math.round(totalPopulation / d.length) : 0,
     };
   })();
@@ -266,7 +276,7 @@ function Reports() {
     let csv = '\uFEFF';
     if (reportType === 'workers') { csv += 'الاسم,العمر,المنطقة,المهنة,الفرقة\n'; filtered.forEach(w2 => { csv += `${w2.name||''},${w2.age||''},${w2.region||''},${w2.profession||''},${w2.teamNumber||''}\n`; }); }
     else if (reportType === 'families') { csv += 'الاسم,الفرقة,عدد الأفراد,المبلغ\n'; filtered.forEach(f => { csv += `${f.name||''},${f.teamNumber||''},${f.memberCount||0},${f.totalAmount||0}\n`; }); }
-    else { csv += 'رب الأسرة,الرقم,القرية,الذكور,الإناث,الدخل,الحالة,نوع السكن,حالة السكن,مصدر الدخل,مدخل البيانات\n'; filtered.forEach(c => { csv += `${c.headName||''},${c.familyNumber||''},${c.village||''},${c.maleCount||0},${c.femaleCount||0},${c.averageIncome||0},${c.financialStatus||''},${c.housingType||''},${c.housingCondition||''},${c.mainIncomeSource||''},${c.enteredByName||''}\n`; }); }
+    else { csv += 'رب الأسرة,الرقم,القرية,الذكور,الإناث,الدخل,الحالة,نوع السكن,حالة السكن,مصدر الدخل,مدخل البيانات\n'; filtered.forEach(c => { csv += `${c.headName||''},${c.familyNumber||''},${c.village||''},${c.maleCount||0},${c.femaleCount||0},${c.averageIncome||0},${c.financialStatus||''},${c.housing?.housingType||''},${c.housing?.housingCondition||''},${c.mainIncomeSource||''},${c.enteredByName||''}\n`; }); }
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `report_${reportType}_${Date.now()}.csv`; a.click();
   };
@@ -335,6 +345,90 @@ function Reports() {
                 Object.fromEntries(Object.entries(censusStats.genderByVillage).map(([k, v]) => [k, v.male])), 'ذكور', '#06b6d4',
                 Object.fromEntries(Object.entries(censusStats.genderByVillage).map(([k, v]) => [k, v.female])), 'إناث', '#ec4899'
               )}
+
+              <div className="chart-card" style={{ marginBottom: '1.5rem' }}>
+                <h3 style={{ marginBottom: '1rem' }}>📊 مقارنة شاملة بين القرى</h3>
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="data-table" style={{ fontSize: '0.8rem', minWidth: '700px' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ position: 'sticky', right: 0, background: 'rgba(30,41,59,0.95)', zIndex: 1 }}>القرية</th>
+                        <th>الأسر</th>
+                        <th>السكان</th>
+                        <th>♂️ ذكور</th>
+                        <th>♀️ إناث</th>
+                        <th>💍 متزوجون</th>
+                        <th>🕊️ متوفون</th>
+                        <th>💰 متوسط الدخل</th>
+                        <th>📊 أفراد</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(censusStats.villageComparison).sort((a, b) => b[1].population - a[1].population).map(([village, stats], i) => {
+                        const avgInc = stats.incomeCount > 0 ? Math.round(stats.totalIncome / stats.incomeCount) : 0;
+                        return (
+                          <tr key={village} style={{ background: i % 2 === 0 ? 'rgba(99,102,241,0.03)' : 'transparent' }}>
+                            <td style={{ fontWeight: '700', position: 'sticky', right: 0, background: i % 2 === 0 ? 'rgba(30,41,59,0.97)' : 'rgba(30,41,59,0.92)', zIndex: 1 }}>{village}</td>
+                            <td><span style={{ color: '#6366f1', fontWeight: '700' }}>{stats.families}</span></td>
+                            <td><span style={{ color: '#10b981', fontWeight: '700' }}>{stats.population}</span></td>
+                            <td><span style={{ color: '#06b6d4', fontWeight: '700' }}>{stats.male}</span></td>
+                            <td><span style={{ color: '#ec4899', fontWeight: '700' }}>{stats.female}</span></td>
+                            <td><span style={{ color: '#8b5cf6', fontWeight: '700' }}>{stats.married}</span></td>
+                            <td><span style={{ color: '#ef4444', fontWeight: '700' }}>{stats.deceased}</span></td>
+                            <td><span style={{ color: '#f59e0b', fontWeight: '700' }}>{avgInc.toLocaleString('ar-SA')} ر.ي</span></td>
+                            <td><span style={{ color: '#14b8a6', fontWeight: '700' }}>{stats.members}</span></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ marginTop: '1rem' }}>
+                  <h4 style={{ fontSize: '0.85rem', marginBottom: '0.8rem', color: 'var(--gray-light)' }}>مقارنة الأسر والسكان والدخل</h4>
+                  {Object.entries(censusStats.villageComparison).sort((a, b) => b[1].population - a[1].population).map(([village, stats], i) => {
+                    const maxPop = Math.max(...Object.values(censusStats.villageComparison).map(s => s.population), 1);
+                    const maxInc = Math.max(...Object.values(censusStats.villageComparison).map(s => s.incomeCount > 0 ? Math.round(s.totalIncome / s.incomeCount) : 0), 1);
+                    const avgInc = stats.incomeCount > 0 ? Math.round(stats.totalIncome / stats.incomeCount) : 0;
+                    const popPct = Math.round((stats.population / maxPop) * 100);
+                    const incPct = Math.round((avgInc / maxInc) * 100);
+                    return (
+                      <div key={village} style={{ marginBottom: '1rem' }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.4rem', color: 'var(--gray-light)' }}>{village} — {stats.families} أسرة</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '3px' }}>
+                          <span style={{ minWidth: '50px', fontSize: '0.7rem', color: '#6366f1' }}>سكان</span>
+                          <div style={{ flex: 1, height: '14px', background: 'rgba(99,102,241,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ width: `${popPct}%`, height: '100%', background: 'linear-gradient(90deg, #6366f1, #818cf8)', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: popPct > 25 ? 'flex-end' : 'flex-start', padding: '0 0.3rem' }}>
+                              <span style={{ fontSize: '0.65rem', color: 'white', fontWeight: '700' }}>{stats.population}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '3px' }}>
+                          <span style={{ minWidth: '50px', fontSize: '0.7rem', color: '#06b6d4' }}>ذكور</span>
+                          <div style={{ flex: 1, height: '14px', background: 'rgba(99,102,241,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ width: `${Math.round((stats.male / Math.max(stats.population, 1)) * 100)}%`, height: '100%', background: 'linear-gradient(90deg, #06b6d4, #22d3ee)', borderRadius: '4px' }} />
+                          </div>
+                          <span style={{ fontSize: '0.65rem', color: '#06b6d4', fontWeight: '700', minWidth: '30px' }}>{stats.male}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '3px' }}>
+                          <span style={{ minWidth: '50px', fontSize: '0.7rem', color: '#ec4899' }}>إناث</span>
+                          <div style={{ flex: 1, height: '14px', background: 'rgba(99,102,241,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ width: `${Math.round((stats.female / Math.max(stats.population, 1)) * 100)}%`, height: '100%', background: 'linear-gradient(90deg, #ec4899, #f472b6)', borderRadius: '4px' }} />
+                          </div>
+                          <span style={{ fontSize: '0.65rem', color: '#ec4899', fontWeight: '700', minWidth: '30px' }}>{stats.female}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ minWidth: '50px', fontSize: '0.7rem', color: '#f59e0b' }}>دخل</span>
+                          <div style={{ flex: 1, height: '14px', background: 'rgba(99,102,241,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ width: `${incPct}%`, height: '100%', background: 'linear-gradient(90deg, #f59e0b, #fbbf24)', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: incPct > 25 ? 'flex-end' : 'flex-start', padding: '0 0.3rem' }}>
+                              <span style={{ fontSize: '0.65rem', color: 'white', fontWeight: '700' }}>{avgInc.toLocaleString('ar-SA')}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </>
           )}
 
@@ -363,7 +457,7 @@ function Reports() {
                     <tr key={i}>
                       {reportType === 'workers' && <><td>{i + 1}</td><td>{item.name}</td><td>{item.age}</td><td>{item.region}</td><td>{item.profession}</td><td>{item.teamNumber}</td></>}
                       {reportType === 'families' && <><td>{i + 1}</td><td>{item.name}</td><td>{item.teamNumber}</td><td>{item.memberCount || 0}</td><td>{(item.totalAmount || 0).toLocaleString('ar-SA')}</td><td>{(item.beneficiaries || []).map(b => b.name).join(', ')}</td></>}
-                      {reportType === 'census' && <><td>{i + 1}</td><td>{item.headName}</td><td>{item.familyNumber}</td><td>{item.village}</td><td>{item.maleCount}</td><td>{item.femaleCount}</td><td>{(item.averageIncome || 0).toLocaleString('ar-SA')} ر.ي</td><td><span className={`badge ${item.financialStatus === 'جيدة' ? 'badge-green' : item.financialStatus === 'سيئة' ? 'badge-orange' : 'badge-blue'}`}>{item.financialStatus || '—'}</span></td><td>{item.housingType || '—'}</td><td style={{ color: '#10b981', fontSize: '0.75rem' }}>{item.enteredByName || '—'}</td></>}
+                      {reportType === 'census' && <><td>{i + 1}</td><td>{item.headName}</td><td>{item.familyNumber}</td><td>{item.village}</td><td>{item.maleCount}</td><td>{item.femaleCount}</td><td>{(item.averageIncome || 0).toLocaleString('ar-SA')} ر.ي</td><td><span className={`badge ${item.financialStatus === 'جيدة' ? 'badge-green' : item.financialStatus === 'سيئة' ? 'badge-orange' : 'badge-blue'}`}>{item.financialStatus || '—'}</span></td><td>{item.housing?.housingType || '—'}</td><td style={{ color: '#10b981', fontSize: '0.75rem' }}>{item.enteredByName || '—'}</td></>}
                     </tr>
                   ))}
                 </tbody>

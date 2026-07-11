@@ -10,7 +10,7 @@ const emptyFamily = {
   headName: '', phone: '', currentFamilySize: 0,
   maleCount: 0, femaleCount: 0, marriedCount: 0, deceasedCount: 0,
   residenceDate: '',
-  housingType: '', housingCondition: '', mainIncomeSource: '', otherIncomeSources: '',
+  mainIncomeSource: '', otherIncomeSources: '',
   averageIncome: 0, financialStatus: '', notes: '',
 };
 
