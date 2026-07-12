@@ -445,7 +445,15 @@ export default function CensusForm({ onSave, onCancel, editData }) {
                                   setMembers(newMembers);
                                 }}>
                                   <option value="">اختر الفرد</option>
-                                  {censusFamilies.filter(c => c.village === m.spouseVillage && c.headName !== family.headName).filter(c => {
+                                  {censusFamilies.filter(c => {
+                                    if (c.village !== m.spouseVillage) return false;
+                                    if (c.headName === family.headName) return false;
+                                    const hasWife = c.members?.some(mb => mb.relationship === 'زوجة');
+                                    const hasHusband = c.members?.some(mb => mb.relationship === 'زوج');
+                                    if (m.gender === 'ذكر') return hasWife;
+                                    if (m.gender === 'أنثى') return hasHusband;
+                                    return true;
+                                  }).filter(c => {
                                     if (!m.spouseSearch) return true;
                                     return c.headName.includes(m.spouseSearch);
                                   }).map(c => (
